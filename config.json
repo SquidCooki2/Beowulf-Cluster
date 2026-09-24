@@ -1,0 +1,55 @@
+{
+  "cluster_name": "AgriBeowulf-5Node",
+  "stages": [
+    {
+      "stage_id": 0,
+      "hostname": "cluster-head",
+      "ip": "10.0.0.10",
+      "fwd_port": 5550,
+      "bwd_port": 5560,
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 4
+    },
+    {
+      "stage_id": 1,
+      "hostname": "cluster-node01",
+      "ip": "10.0.0.11",
+      "fwd_port": 5551,
+      "bwd_port": 5561,
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 4
+    },
+    {
+      "stage_id": 2,
+      "hostname": "cluster-node02",
+      "ip": "10.0.0.12",
+      "fwd_port": 5552,
+      "bwd_port": 5562,
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 4
+    },
+    {
+      "stage_id": 3,
+      "hostname": "cluster-node03",
+      "ip": "10.0.0.13",
+      "fwd_port": 5553,
+      "bwd_port": 5563,
+      "device_type": "Lenovo_ThinkCentre_M900",
+      "layers": 3
+    },
+    {
+      "stage_id": 4,
+      "hostname": "cluster-node04",
+      "ip": "10.0.0.14",
+      "fwd_port": 5554,
+      "bwd_port": 5564,
+      "device_type": "Lenovo_ThinkCentre_M900",
+      "layers": 3
+    }
+  ],
+  "batch_size": 32,
+  "micro_batch_size": 4,
+  "num_microbatches": 8,
+  "num_classes": 38,
+  "learning_rate": 0.001
+}
