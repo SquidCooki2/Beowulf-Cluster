@@ -8,7 +8,9 @@ How to run the malaria model on the UNC Charlotte HPC (CPU and GPU) so it can be
 ## 0. What you need
 
 - A NinerNET ID with HPC access, and VPN + Duo when off campus.
-- Access to a GPU partition (`GPU`) and a CPU partition (this repo assumes `Orion`; check with `sinfo`).
+- Access to a GPU partition (`GPU`) and a CPU partition:
+  - On the **Student / Educational cluster** (nodes like `gal-gpu[1-6]`): CPU partition is **`Centaurus`**.
+  - On the **Research cluster (Starlight)**: CPU partitions are **`Nebula`** (general) or **`Orion`** (faculty-sponsored).
 - This repository on the cluster.
 
 ## 1. Log in and get the code
@@ -42,16 +44,21 @@ If you ever wish to redirect datasets or large model checkpoints to scratch, sim
 module load anaconda3
 conda create -n beowulf python=3.10 -y
 source activate beowulf
+
+# IMPORTANT FOR HPC GPU NODES:
+# UNC Charlotte GPU nodes run NVIDIA driver 525.x / 535.x (CUDA <= 12.1 or 12.4).
+# A generic `pip install torch` installs CUDA 12.8+, which fails with:
+# "RuntimeError: The NVIDIA driver on your system is too old (found version 12080)".
+# Install PyTorch built with CUDA 12.1 or 12.4:
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 ```
 
-For GPU runs, the PyTorch build must match the cluster's CUDA version. Check it, then confirm on a GPU node (see step 4):
+Verify your GPU is recognized by running:
 
 ```bash
-python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+python -c "import torch; print('CUDA available:', torch.cuda.is_available(), '| Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None')"
 ```
-
-If this prints `False` on a GPU node, reinstall torch with a CUDA build from <https://pytorch.org/get-started/locally/> that matches `nvidia-smi`'s CUDA version.
 
 > [!TIP]
 > The conda environment itself can create many files. If you hit the inode limit, put it in scratch with `conda create -p /scratch/$USER/envs/beowulf ...` and set `CONDA_ENV=/scratch/$USER/envs/beowulf` when you submit.

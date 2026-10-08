@@ -1,6 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=bench_cpu
-#SBATCH --partition=Orion
+#SBATCH --partition=Centaurus
+# Note: On UNCC student/educational cluster (where gal-gpu nodes live), CPU partition is 'Centaurus'.
+# If on the research cluster (Starlight), the CPU partition is 'Nebula' or 'Orion'.
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
