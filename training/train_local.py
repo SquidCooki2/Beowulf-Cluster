@@ -19,14 +19,14 @@ from torch.utils.data import DataLoader
 from benchmark.metrics import peak_rss_mb, save_json, sync, system_info
 from models.registry import DEFAULT_MODEL, REGISTRY, get_spec
 
-DEFAULT_SCRATCH = os.environ.get("SCRATCH_DIR", f"/scratch/{os.environ.get('USER', 'username')}")
-
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--model", default=DEFAULT_MODEL, choices=sorted(REGISTRY))
-    p.add_argument("--data-dir", default=os.path.join(DEFAULT_SCRATCH, "data"))
-    p.add_argument("--output-dir", default=os.path.join(DEFAULT_SCRATCH, "output"))
+    p.add_argument("--data-dir", default=os.path.join(os.getcwd(), "data"),
+                   help="Directory for datasets (default: ./data)")
+    p.add_argument("--output-dir", default=os.path.join(os.getcwd(), "output"),
+                   help="Directory for saved model weights (default: ./output)")
     p.add_argument("--results-dir", default="results", help="Benchmark JSON goes to <results-dir>/<run-id>/")
     p.add_argument("--run-id", default=time.strftime("%Y%m%d-%H%M%S"))
     p.add_argument("--platform-label", default=None, help="Default: hpc-<device>")
@@ -54,7 +54,9 @@ def check_dirs(args):
     for d in (args.data_dir, args.output_dir):
         ap = os.path.abspath(d)
         if not args.allow_home and (ap.startswith("/users") or ap.startswith(home)):
-            sys.exit(f"Refusing {ap}: home directory has an inode quota. Use scratch or --allow-home.")
+            print(f"[NOTE] Path '{ap}' is located in a home/user directory. "
+                  "Packed .npz format is safe, but ensure loose files don't exceed your inode quota. "
+                  "Use scratch if you run large multi-file experiments.", flush=True)
         os.makedirs(ap, exist_ok=True)
 
 

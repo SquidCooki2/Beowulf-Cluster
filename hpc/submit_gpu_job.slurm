@@ -18,13 +18,13 @@ module load anaconda3
 # One-time setup:  conda create -n beowulf python=3.10 && source activate beowulf && pip install -r requirements.txt
 source activate "${CONDA_ENV:-beowulf}"
 
-# Keep ALL data/outputs in scratch (home has a 5M inode limit).
-export SCRATCH_DIR="${SCRATCH_DIR:-/scratch/$USER}"
-export TORCH_HOME="${TORCH_HOME:-$SCRATCH_DIR/torch_cache}"   # pretrained weights cache
-mkdir -p "$SCRATCH_DIR"
+DATA_DIR="${DATA_DIR:-data}"
+OUTPUT_DIR="${OUTPUT_DIR:-output}"
+export TORCH_HOME="${TORCH_HOME:-.torch_cache}"
+mkdir -p "$DATA_DIR" "$OUTPUT_DIR" "$TORCH_HOME"
 
 python -m training.train_local \
     --model "${MODEL:?set MODEL, e.g. MODEL=malaria_mobilenet}" \
-    --data-dir "$SCRATCH_DIR/data" \
-    --output-dir "$SCRATCH_DIR/output" \
-    ${TRAIN_ARGS}
+    --data-dir "$DATA_DIR" \
+    --output-dir "$OUTPUT_DIR" \
+    ${TRAIN_ARGS:-}

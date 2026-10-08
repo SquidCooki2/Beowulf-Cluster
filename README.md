@@ -59,8 +59,7 @@ This repository contains the codebase and orchestration tools for a 5-node Beowu
 
 Every model in `models/registry.py` is a list of stages. The engine runs stage *i* on node *i*; the HPC trainer joins the stages into one `nn.Sequential`. Both use the same data split and recipe, so training speed, time-to-accuracy and inference latency/throughput can be compared. Full setup: [docs/hpc_setup_and_benchmarking.md](docs/hpc_setup_and_benchmarking.md).
 
-```bash
-# UNC Charlotte HPC (data + outputs go to scratch, not home)
+# UNC Charlotte HPC (runs inside cloned repo; data + outputs stay in ./data and ./output)
 sbatch hpc/benchmark_gpu.slurm
 sbatch hpc/benchmark_cpu.slurm
 

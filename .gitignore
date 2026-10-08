@@ -1,9 +1,14 @@
-
-
-# training outputs
-*.pt
+# Data and downloaded archives
+data/
+*.zip
 *.npz
+
+# Model and training outputs
+output/
+*.pt
+results/*/weights/
+
+# Logs and scratch
 logs/
 __pycache__/
-results/*/weights/
 tmp_smoke/

@@ -13,10 +13,10 @@ mkdir -p logs
 module load anaconda3
 source activate "${CONDA_ENV:-beowulf}"
 
-# Keep ALL data/outputs in scratch (home has a 5M inode limit).
-export SCRATCH_DIR="${SCRATCH_DIR:-/scratch/$USER}"
-export TORCH_HOME="${TORCH_HOME:-$SCRATCH_DIR/torch_cache}"   # pretrained weights cache
-mkdir -p "$SCRATCH_DIR"
+DATA_DIR="${DATA_DIR:-data}"
+OUTPUT_DIR="${OUTPUT_DIR:-output}"
+export TORCH_HOME="${TORCH_HOME:-.torch_cache}"
+mkdir -p "$DATA_DIR" "$OUTPUT_DIR" "$TORCH_HOME"
 
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
 # Benchmark JSON is small, so it lives in the repo's results/ dir (commit/copy it freely).
@@ -25,15 +25,15 @@ RESULTS_DIR="${RESULTS_DIR:-results}"
 echo "== Training ($DEVICE, run $RUN_ID) =="
 python -m training.train_local \
     --device "$DEVICE" --threads "$THREADS" \
-    --data-dir "$SCRATCH_DIR/data" --output-dir "$SCRATCH_DIR/output" \
+    --data-dir "$DATA_DIR" --output-dir "$OUTPUT_DIR" \
     --results-dir "$RESULTS_DIR" --run-id "$RUN_ID" \
     --recipe full --epochs "${EPOCHS:-10}" ${TRAIN_ARGS:-}
 
 echo "== Inference ($DEVICE, run $RUN_ID) =="
 python -m benchmark.infer_local \
     --device "$DEVICE" --threads "$THREADS" \
-    --data-dir "$SCRATCH_DIR/data" \
-    --weights-dir "$SCRATCH_DIR/output/malaria_mobilenet" \
+    --data-dir "$DATA_DIR" \
+    --weights-dir "$OUTPUT_DIR/malaria_mobilenet" \
     --results-dir "$RESULTS_DIR" --run-id "$RUN_ID" ${INFER_ARGS:-}
 
 echo "Done. Results in $RESULTS_DIR/$RUN_ID"

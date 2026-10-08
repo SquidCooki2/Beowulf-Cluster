@@ -20,15 +20,21 @@ git clone <your repo URL> Beowulf-Cluster
 cd Beowulf-Cluster
 ```
 
-The code is small, so the home directory is fine for it. **Data, caches and model outputs must never go in your home directory.** Home has a 5 million file (inode) limit, and the raw dataset is about 27,000 image files. Everything big goes in scratch (5 TB quota):
+The code is small, so your user directory `/users/<ninernet_id>` is fine for it.
 
-```bash
-echo $USER
-mkdir -p /scratch/$USER          # scratch lives at /scratch/<ninernet_id>
-export SCRATCH_DIR=/scratch/$USER
-```
+### Storage: Local `./data` vs `/scratch/$USER`
 
-The scripts use `$SCRATCH_DIR` and default to `/scratch/$USER`. The trainer refuses to write data under `/users` or your home directory unless you pass `--allow-home`.
+By default, all scripts and Slurm jobs keep datasets and weights directly inside your cloned repo:
+* **Dataset:** `Beowulf-Cluster/data/` (specifically `data/malaria_128.npz`, ~1.3GB)
+* **Model outputs:** `Beowulf-Cluster/output/`
+* **Torch weight cache:** `Beowulf-Cluster/.torch_cache/`
+
+All three are ignored by `.gitignore` so your Git state stays clean.
+
+**Why this is safe in your home/user directory (`/users/<ninernet_id>`):**
+UNC Charlotte user directories have a **5 million file (inode) limit** and a 500GB quota. Because our pipeline packs all 27,558 image cells into **a single `.npz` file**, it consumes only 2 files on disk (the downloaded `.zip` and the packed `.npz`), well within your quota.
+
+If you ever wish to redirect datasets or large model checkpoints to scratch, simply set the environment variables `DATA_DIR=/scratch/$USER/data` or pass `--data-dir /scratch/$USER/data`.
 
 ## 2. Create the Python environment (once)
 
@@ -52,22 +58,20 @@ If this prints `False` on a GPU node, reinstall torch with a CUDA build from <ht
 
 ## 3. Prepare the data (once, on the login node)
 
-The compute nodes may have no internet access, so download on the login node. This downloads the NIH malaria zip (~340 MB) into scratch, resizes the images to 128×128, and packs them into a single `malaria_128.npz` file:
+The compute nodes may have no internet access, so download on the login node. This downloads the NIH malaria zip (~340 MB) into `Beowulf-Cluster/data/`, resizes the images to 128×128, and packs them into a single `data/malaria_128.npz` file:
 
 ```bash
-export SCRATCH_DIR=/scratch/$USER
-export TORCH_HOME=$SCRATCH_DIR/torch_cache      # cached pretrained weights
-mkdir -p $TORCH_HOME $SCRATCH_DIR/data
+cd ~/Beowulf-Cluster
+mkdir -p data output .torch_cache
+export TORCH_HOME=.torch_cache
 
 python - <<'EOF'
-import os
 from data import malaria
 from models.registry import get_spec
 
-d = os.path.join(os.environ["SCRATCH_DIR"], "data")
-x, y = malaria.load_arrays(d)           # downloads, packs, caches
+x, y = malaria.load_arrays("data")              # downloads, packs to data/malaria_128.npz
 print("images:", x.shape, "labels:", y.shape, "parasitized:", int((y == 0).sum()))
-get_spec("malaria_mobilenet").create_stages(5)   # caches the ImageNet weights once
+get_spec("malaria_mobilenet").create_stages(5)  # caches pretrained ImageNet weights
 EOF
 ```
 
@@ -82,12 +86,12 @@ Always do this before a long job. It uses an interactive GPU session, 256 images
 ```bash
 srun --partition=GPU --gres=gpu:1 --cpus-per-task=4 --mem=16G --time=00:30:00 --pty bash
 # then, inside the session:
+cd ~/Beowulf-Cluster
 module load anaconda3 && source activate beowulf
-export SCRATCH_DIR=/scratch/$USER TORCH_HOME=/scratch/$USER/torch_cache
-python -m training.train_local --device cuda --epochs 1 --limit 256 --workers 2 \
-    --data-dir $SCRATCH_DIR/data --output-dir $SCRATCH_DIR/output --run-id smoke
-python -m benchmark.infer_local --device cuda --limit 256 --latency-samples 20 \
-    --data-dir $SCRATCH_DIR/data --weights-dir $SCRATCH_DIR/output/malaria_mobilenet --run-id smoke
+export TORCH_HOME=.torch_cache
+
+python -m training.train_local --device cuda --epochs 1 --limit 256 --workers 2 --run-id smoke
+python -m benchmark.infer_local --device cuda --limit 256 --latency-samples 20 --weights-dir output/malaria_mobilenet --run-id smoke
 exit
 ```
 
@@ -137,7 +141,7 @@ On the cluster head node (`10.0.0.10`), with the repo at `/shared/pipe1f1b`:
 
 ```bash
 # one-time: copy the packed dataset and prefetch weights so stages don't race to download
-scp <ninernet_id>@hpc.charlotte.edu:/scratch/<ninernet_id>/data/malaria_128.npz /shared/data/
+scp <ninernet_id>@hpc.charlotte.edu:~/Beowulf-Cluster/data/malaria_128.npz /shared/data/
 export TORCH_HOME=/shared/torch_cache
 python3 -c "from models.registry import get_spec; get_spec('malaria_mobilenet').create_stages(5)"
 
@@ -190,7 +194,7 @@ This writes `results/summary.md` (a table plus speedups vs the engine) and `resu
 
 | Symptom | Fix |
 |---|---|
-| `Refusing /users/...: home directory has an inode quota` | Set `SCRATCH_DIR=/scratch/$USER`. |
+| Inode quota warning during training | The packed `data/malaria_128.npz` only takes 2 inodes, but if you create thousands of custom checkpoints, pass `--output-dir /scratch/$USER/output`. |
 | `torch.cuda.is_available()` is `False` on the GPU node | Reinstall torch with a CUDA build matching `nvidia-smi`. |
 | Job stuck in `PD` (pending) | `squeue -u $USER -o "%i %T %r"` shows the reason; shorten `--time` or reduce resources. |
 | Download or `urlretrieve` fails on a compute node | Compute nodes may be offline. Prepare data and weights on the login node (step 3). |

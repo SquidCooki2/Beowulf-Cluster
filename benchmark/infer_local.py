@@ -15,14 +15,11 @@ import torch.nn as nn
 from benchmark.metrics import latency_summary, peak_rss_mb, save_json, sync, system_info
 from data import malaria
 from models.registry import DEFAULT_MODEL, get_spec
-
-DEFAULT_SCRATCH = os.environ.get("SCRATCH_DIR", f"/scratch/{os.environ.get('USER', 'username')}")
-
-
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--model", default=DEFAULT_MODEL)
-    p.add_argument("--data-dir", default=os.path.join(DEFAULT_SCRATCH, "data"))
+    p.add_argument("--data-dir", default=os.path.join(os.getcwd(), "data"),
+                   help="Directory holding datasets (default: ./data)")
     p.add_argument("--weights-dir", default=None, help="Dir with model.pt from training.train_local")
     p.add_argument("--results-dir", default="results")
     p.add_argument("--run-id", default=time.strftime("%Y%m%d-%H%M%S"))
