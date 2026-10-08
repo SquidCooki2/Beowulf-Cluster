@@ -3,6 +3,7 @@ import torch
 import numpy as np
 import json
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
 
@@ -17,6 +18,8 @@ class TensorTransceiver:
         self.stages = config["stages"]
         self.num_stages = len(self.stages)
         self.context = zmq.Context()
+        self.recv_wait_s = self.send_s = 0.0
+        self.bytes_sent = self.bytes_recv = 0
 
         # 1. Receiver Sockets (Bind on local node)
         if self.stage_id > 0:
@@ -71,18 +74,36 @@ class TensorTransceiver:
         return torch.from_numpy(np_arr)
 
     def send_forward(self, tensor: torch.Tensor):
-        self.send_fwd_sock.send_multipart(self._serialize(tensor))
+        self._send(self.send_fwd_sock, tensor)
 
     def recv_forward(self) -> torch.Tensor:
-        meta, data = self.recv_fwd_sock.recv_multipart()
-        return self._deserialize(meta, data)
+        return self._recv(self.recv_fwd_sock)
 
     def send_backward(self, grad_tensor: torch.Tensor):
-        self.send_bwd_sock.send_multipart(self._serialize(grad_tensor))
+        self._send(self.send_bwd_sock, grad_tensor)
 
     def recv_backward(self) -> torch.Tensor:
-        meta, data = self.recv_bwd_sock.recv_multipart()
+        return self._recv(self.recv_bwd_sock)
+
+    # ---- instrumentation (communication cost accounting for benchmarks) ----
+    def _send(self, sock, tensor):
+        t0 = time.perf_counter()
+        parts = self._serialize(tensor)
+        sock.send_multipart(parts)
+        self.send_s += time.perf_counter() - t0
+        self.bytes_sent += sum(len(p) for p in parts)
+
+    def _recv(self, sock):
+        t0 = time.perf_counter()
+        meta, data = sock.recv_multipart()  # blocks until upstream/downstream is ready
+        self.recv_wait_s += time.perf_counter() - t0
+        self.bytes_recv += len(data)
         return self._deserialize(meta, data)
+
+    def stats(self):
+        """Cumulative counters: seconds blocked receiving, seconds serializing+sending, bytes."""
+        return {"recv_wait_s": self.recv_wait_s, "send_s": self.send_s,
+                "bytes_sent": self.bytes_sent, "bytes_recv": self.bytes_recv}
 
     def close(self):
         self.context.term()

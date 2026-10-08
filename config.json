@@ -50,6 +50,6 @@
   "batch_size": 32,
   "micro_batch_size": 4,
   "num_microbatches": 8,
-  "num_classes": 38,
-  "learning_rate": 0.001
+  "model": "malaria_mobilenet",
+  "learning_rate": 0.0001
 }

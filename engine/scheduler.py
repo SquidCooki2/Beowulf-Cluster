@@ -18,6 +18,8 @@ class Pipeline1F1BScheduler:
 
         # FIFO buffer bounding resident RAM activations to at most num_stages
         self.saved_activations = []
+        # Per-micro-batch losses (terminal stage only), consumed by benchmarking
+        self.loss_history = []
 
     def forward_step(self, input_tensor=None):
         """Executes forward pass for one micro-batch and forwards output downstream."""
@@ -41,7 +43,10 @@ class Pipeline1F1BScheduler:
         if self.stage_id == self.num_stages - 1:
             # Terminal stage: compute loss
             loss = self.criterion(output_tensor, target_labels)
-            loss.backward()
+            self.loss_history.append(loss.item())
+            # Gradients accumulate over all micro-batches before one optimizer step,
+            # so scale to match the gradient of the mean loss over the full batch.
+            (loss / self.num_microbatches).backward()
             incoming_grad = input_tensor.grad
         else:
             grad_output = self.transceiver.recv_backward()
@@ -58,15 +63,15 @@ class Pipeline1F1BScheduler:
         2. Steady State: 1-Forward followed by 1-Backward.
         3. Cooldown: Drains remaining backward passes.
         """
-        num_warmup = min(self.num_stages - self.stage_id, self.num_microbatches)
+        # Standard 1F1B: stage i warms up with (num_stages - i - 1) forwards, so the
+        # terminal stage has no warmup and alternates forward/backward immediately.
+        num_warmup = min(self.num_stages - self.stage_id - 1, self.num_microbatches)
 
         # 1. Warmup Phase
         for _ in range(num_warmup):
             if self.stage_id == 0:
                 batch_data = next(dataloader_iterator)
                 self.forward_step(batch_data)
-            elif self.stage_id == self.num_stages - 1:
-                pass
             else:
                 self.forward_step()
 
