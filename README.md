@@ -1,21 +1,15 @@
-# Beowulf Cluster: Heterogeneous 1F1B Distributed AI Engine
+# Beowulf Cluster: Heterogeneous Distributed Engine
+
+A Beowulf cluster: defined as a parallel-processing computer cluster built from inexpensive, commodity-grade hardware
 
 This repository contains the codebase and orchestration tools for a 5-node Beowulf Cluster designed for distributed deep learning training and inference on low-power, heterogeneous office PCs (3x HP ProDesk 400 G5 + 2x Lenovo ThinkCentre M900).
 
-## 🚀 Key Architectural Innovations
-
-1. **Heterogeneous 1F1B (One-Forward-One-Backward) Pipeline Parallelism**:
-   - Bounds peak activation RAM per machine to $p=5$ stages.
-   - Replaces heavy all-to-all AllReduce gradient broadcasts with lightweight point-to-point boundary activation streaming over ZeroMQ.
-2. **Adaptive FLOPS-Proportional Stage Balancing**:
-   - Benchmarks node CPU FLOPS at startup.
-   - Proportionally allocates layers (e.g. 4-5 layers to 8th/9th Gen HPs, 2-3 layers to 6th Gen Lenovos) to eliminate pipeline stall bubbles.
-3. **Malaria Cell Classification**:
-   - Pretrained MobileNetV2 classifying parasitized vs uninfected blood-smear cells (NIH dataset, ~27.5k images).
+## Write-ups coming soon!
+We are in the process of development, so full write-ups will come soon!
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 .
@@ -52,39 +46,4 @@ This repository contains the codebase and orchestration tools for a 5-node Beowu
 ├── launch_cluster.sh       # Bash bootstrap script to launch all 5 nodes over SSH (forwards args)
 └── docs/                   # Research blueprints, plus hpc_setup_and_benchmarking.md
 ```
-
 ---
-
-## 🔁 Engine vs HPC Benchmark
-
-Every model in `models/registry.py` is a list of stages. The engine runs stage *i* on node *i*; the HPC trainer joins the stages into one `nn.Sequential`. Both use the same data split and recipe, so training speed, time-to-accuracy and inference latency/throughput can be compared. Full setup: [docs/hpc_setup_and_benchmarking.md](docs/hpc_setup_and_benchmarking.md).
-
-# UNC Charlotte HPC (runs inside cloned repo; data + outputs stay in ./data and ./output)
-sbatch hpc/benchmark_gpu.slurm
-sbatch hpc/benchmark_cpu.slurm
-
-# Engine (from the head node)
-bash launch_cluster.sh --mode train --epochs 10 --data-dir /shared/data --run-id engine-train
-bash launch_cluster.sh --mode infer --data-dir /shared/data --run-id engine-train \
-    --weights-dir results/engine-train/weights
-
-# Compare everything in results/
-python -m benchmark.compare --results-dir results --target-acc 0.95
-
-# Try the engine on one machine without a cluster
-python -m benchmark.launch_local --num-stages 3 -- --mode train --data-dir ./tmp --limit 256 --epochs 1
-```
-
----
-
-## 🛠️ Quick Start
-
-### 1. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Launch 5-Node Pipeline (From Head Node `10.0.0.10`)
-```bash
-bash launch_cluster.sh
-```
