@@ -3,16 +3,16 @@
   "stages": [
     {
       "stage_id": 0,
-      "hostname": "cluster-head",
+      "hostname": "thinkcentre1",
       "ip": "10.0.0.10",
       "fwd_port": 5550,
       "bwd_port": 5560,
-      "device_type": "HP_ProDesk_400_G5",
-      "layers": 4
+      "device_type": "Lenovo_ThinkCentre_M900",
+      "layers": 3
     },
     {
       "stage_id": 1,
-      "hostname": "cluster-node01",
+      "hostname": "prodesk1",
       "ip": "10.0.0.11",
       "fwd_port": 5551,
       "bwd_port": 5561,
@@ -21,7 +21,7 @@
     },
     {
       "stage_id": 2,
-      "hostname": "cluster-node02",
+      "hostname": "prodesk2",
       "ip": "10.0.0.12",
       "fwd_port": 5552,
       "bwd_port": 5562,
@@ -30,16 +30,16 @@
     },
     {
       "stage_id": 3,
-      "hostname": "cluster-node03",
+      "hostname": "prodesk3",
       "ip": "10.0.0.13",
       "fwd_port": 5553,
       "bwd_port": 5563,
-      "device_type": "Lenovo_ThinkCentre_M900",
-      "layers": 3
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 4
     },
     {
       "stage_id": 4,
-      "hostname": "cluster-node04",
+      "hostname": "thinkcentre2",
       "ip": "10.0.0.14",
       "fwd_port": 5554,
       "bwd_port": 5564,

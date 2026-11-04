@@ -19,8 +19,14 @@ def _malaria(num_stages=5, pretrained=True, **kw):
     return create_malaria_stages(num_stages, pretrained=pretrained)
 
 
+def _smolvlm(num_stages=5, pretrained=True, **kw):
+    from models.scienceqa_smolvlm import create_smolvlm_stages
+    return create_smolvlm_stages(num_stages, pretrained=pretrained)
+
+
 REGISTRY = {
     "malaria_mobilenet": ModelSpec("malaria_mobilenet", _malaria, (3, 128, 128), 2, "ce", True, "malaria"),
+    "scienceqa_smolvlm": ModelSpec("scienceqa_smolvlm", _smolvlm, (4, 128, 128), 5, "ce", True, "scienceqa"),
 }
 DEFAULT_MODEL = "malaria_mobilenet"
 

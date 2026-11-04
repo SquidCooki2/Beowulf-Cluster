@@ -5,6 +5,7 @@ trained here load directly into the pipeline engine (per-stage files are saved).
 Per-epoch timings and accuracy are written to JSON for comparison with the engine.
 
     python -m training.train_local --model malaria_mobilenet --device cuda --recipe full
+    python -m training.train_local --model scienceqa_smolvlm --device cuda --recipe full
 """
 import argparse
 import importlib
@@ -119,19 +120,20 @@ def main(argv=None):
     loss_fn = nn.CrossEntropyLoss()
     log = []
 
+    trainable_params = [p for p in model.parameters() if p.requires_grad]
     if args.recipe == "full":
-        fit(model, loaders, device, args.epochs, args.lr, model.parameters(), "full", loss_fn, log)
+        fit(model, loaders, device, args.epochs, args.lr, trainable_params, "full", loss_fn, log)
     else:
-        for p in model.parameters():
+        for p in trainable_params:
             p.requires_grad = False
-        head = list(stages[-1].parameters())
+        head = [p for p in stages[-1].parameters() if p in set(trainable_params)]
         for p in head:
             p.requires_grad = True
         done = fit(model, loaders, device, args.epochs, args.lr, head, "head", loss_fn, log)
-        for p in model.parameters():  # FrozenBatchNorm has no params, so it stays frozen
+        for p in trainable_params:  # FrozenBatchNorm and frozen vision stems stay frozen
             p.requires_grad = True
         fit(model, loaders, device, args.finetune_epochs, args.finetune_lr,
-            [p for p in model.parameters() if p.requires_grad], "finetune", loss_fn, log, done)
+            trainable_params, "finetune", loss_fn, log, done)
 
     test = run_epoch(model, loaders[2], loss_fn, device)
     print(f"[test] loss={test['loss']:.4f} acc={test['acc']:.4f}")

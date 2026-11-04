@@ -1,5 +1,8 @@
 torch>=2.2.0
 torchvision>=0.17.0
+transformers>=4.46.0
+datasets>=2.19.0
+pillow>=10.0.0
 pyzmq>=25.1.0
 numpy>=1.24.0
 tqdm>=4.66.0

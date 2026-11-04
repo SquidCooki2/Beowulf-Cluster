@@ -4,6 +4,7 @@ Every stage runs the same loops with identical counts; stage 0 feeds images and 
 terminal stage reads labels from the shared, deterministic dataset split, so no data
 is exchanged except activations/gradients. Stage 0's clock gives end-to-end timing.
 """
+import importlib
 import logging
 import os
 import time
@@ -12,24 +13,30 @@ import numpy as np
 import torch
 
 from benchmark.metrics import latency_summary, peak_rss_mb, save_json, system_info
-from data import malaria
 from engine.inference import run_inference
+from models.registry import get_spec
+
+
+def _data_module(args):
+    spec = get_spec(args.model_name)
+    return importlib.import_module(f"data.{spec.data}")
 
 
 def _load(stage_id, args):
-    # Only stage 0 needs pixels (~1.3GB); everyone else just reads the tiny label array.
-    x, y = malaria.load_arrays(args.data_dir, images=(stage_id == 0))
-    tr, va, te = malaria.split_indices(len(y), seed=0, limit=args.limit)
-    return x, y, tr, va, te
+    data_mod = _data_module(args)
+    # Only stage 0 needs pixels/tokens; everyone else just reads the tiny label array.
+    x, y = data_mod.load_arrays(args.data_dir, images=(stage_id == 0))
+    tr, va, te = data_mod.split_indices(len(y), seed=0, limit=args.limit)
+    return data_mod, x, y, tr, va, te
 
 
 def _chunks(idx, size):
     return [idx[i:i + size] for i in range(0, len(idx), size)]
 
 
-def _pass(stage_id, num_stages, model, transceiver, x, y, chunks, ack_each):
+def _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, chunks, ack_each):
     """One forward-only pass over `chunks` (lists of dataset indices)."""
-    batches = (malaria.to_tensor(x[c]) for c in chunks) if stage_id == 0 else None
+    batches = (data_mod.to_tensor(x[c]) for c in chunks) if stage_id == 0 else None
     labels = [torch.from_numpy(y[c]) for c in chunks] if stage_id == num_stages - 1 else None
     return run_inference(stage_id, num_stages, model, transceiver, len(chunks), batches, labels, ack_each)
 
@@ -52,7 +59,7 @@ def run_train(stage_id, num_stages, model, scheduler, transceiver, config, args)
     last = num_stages - 1
     mb, nmb = config["micro_batch_size"], config["num_microbatches"]
     bs = mb * nmb
-    x, y, tr, va, te = _load(stage_id, args)
+    data_mod, x, y, tr, va, te = _load(stage_id, args)
     iters = len(tr) // bs
     if iters == 0:
         raise ValueError(f"Train split ({len(tr)}) smaller than one batch ({bs}); raise --limit")
@@ -60,7 +67,7 @@ def run_train(stage_id, num_stages, model, scheduler, transceiver, config, args)
     log = []
 
     for epoch in range(args.epochs):
-        order = malaria.epoch_order(tr, epoch, args.seed)
+        order = data_mod.epoch_order(tr, epoch, args.seed)
         before = transceiver.stats()
         scheduler.loss_history.clear()
         model.train()
@@ -69,7 +76,7 @@ def run_train(stage_id, num_stages, model, scheduler, transceiver, config, args)
             ids = order[it * bs:(it + 1) * bs]
             micro = target = None
             if stage_id == 0:
-                micro = iter([malaria.to_tensor(x[ids[j * mb:(j + 1) * mb]], augment=True, rng=aug_rng)
+                micro = iter([data_mod.to_tensor(x[ids[j * mb:(j + 1) * mb]], augment=True, rng=aug_rng)
                               for j in range(nmb)])
             if stage_id == last:
                 target = iter([torch.from_numpy(y[ids[j * mb:(j + 1) * mb]]) for j in range(nmb)])
@@ -78,7 +85,7 @@ def run_train(stage_id, num_stages, model, scheduler, transceiver, config, args)
         after = transceiver.stats()
 
         t1 = time.perf_counter()
-        val = _pass(stage_id, num_stages, model, transceiver, x, y, _chunks(va, bs), ack_each=False)
+        val = _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, _chunks(va, bs), ack_each=False)
         val_s = time.perf_counter() - t1
 
         rec = {"epoch": epoch + 1, "train_s": train_s, "val_s": val_s,
@@ -93,7 +100,7 @@ def run_train(stage_id, num_stages, model, scheduler, transceiver, config, args)
                      + (f" val_acc={rec['val_acc']:.4f} train_loss={rec['train_loss']:.4f}"
                         if stage_id == last else ""))
 
-    test = _pass(stage_id, num_stages, model, transceiver, x, y, _chunks(te, bs), ack_each=False)
+    test = _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, _chunks(te, bs), ack_each=False)
     record = _base_record(stage_id, num_stages, "train", args, config)
     record.update(epochs=log, peak_rss_mb=peak_rss_mb())
     if stage_id == last:
@@ -109,13 +116,13 @@ def run_train(stage_id, num_stages, model, scheduler, transceiver, config, args)
 
 def run_infer(stage_id, num_stages, model, transceiver, config, args):
     last = num_stages - 1
-    x, y, _, _, te = _load(stage_id, args)
+    data_mod, x, y, _, _, te = _load(stage_id, args)
     record = _base_record(stage_id, num_stages, "infer", args, config)
 
     # Latency: batch size 1, acked per sample (round-trip on stage 0's clock)
     lat_ids = te[:args.latency_samples]
-    _pass(stage_id, num_stages, model, transceiver, x, y, _chunks(lat_ids[:10], 1), ack_each=True)  # warmup
-    res = _pass(stage_id, num_stages, model, transceiver, x, y, _chunks(lat_ids, 1), ack_each=True)
+    _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, _chunks(lat_ids[:10], 1), ack_each=True)  # warmup
+    res = _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, _chunks(lat_ids, 1), ack_each=True)
     if stage_id == 0:
         record["latency_b1"] = latency_summary(res["latencies_s"])
     if stage_id == last:
@@ -124,8 +131,8 @@ def run_infer(stage_id, num_stages, model, transceiver, config, args):
     # Throughput: pipelined batches over the whole test split
     record["throughput"] = {}
     for b in args.infer_batch_sizes:
-        _pass(stage_id, num_stages, model, transceiver, x, y, _chunks(te[:2 * b], b), ack_each=False)  # warmup
-        res = _pass(stage_id, num_stages, model, transceiver, x, y, _chunks(te, b), ack_each=False)
+        _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, _chunks(te[:2 * b], b), ack_each=False)  # warmup
+        res = _pass(stage_id, num_stages, model, transceiver, data_mod, x, y, _chunks(te, b), ack_each=False)
         if stage_id == 0:
             record["throughput"][str(b)] = {"images_per_s": len(te) / res["elapsed_s"],
                                             "elapsed_s": res["elapsed_s"], "n": len(te)}

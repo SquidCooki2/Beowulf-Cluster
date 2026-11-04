@@ -6,6 +6,7 @@ timing host->device copy + forward + result read-back, like a real request would
     python -m benchmark.infer_local --device cuda --weights-dir $SCRATCH_DIR/output/malaria_mobilenet
 """
 import argparse
+import importlib
 import os
 import time
 
@@ -13,11 +14,12 @@ import torch
 import torch.nn as nn
 
 from benchmark.metrics import latency_summary, peak_rss_mb, save_json, sync, system_info
-from data import malaria
-from models.registry import DEFAULT_MODEL, get_spec
+from models.registry import DEFAULT_MODEL, REGISTRY, get_spec
+
+
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--model", default=DEFAULT_MODEL)
+    p.add_argument("--model", default=DEFAULT_MODEL, choices=sorted(REGISTRY))
     p.add_argument("--data-dir", default=os.path.join(os.getcwd(), "data"),
                    help="Directory holding datasets (default: ./data)")
     p.add_argument("--weights-dir", default=None, help="Dir with model.pt from training.train_local")
@@ -41,20 +43,21 @@ def main(argv=None):
     if args.threads:
         torch.set_num_threads(args.threads)
     spec = get_spec(args.model)
+    data_mod = importlib.import_module(f"data.{spec.data}")
     model = nn.Sequential(*spec.create_stages(args.num_stages, pretrained=not args.no_pretrained))
     if args.weights_dir:
         model.load_state_dict(torch.load(os.path.join(args.weights_dir, "model.pt"), map_location="cpu"))
     model.to(device).eval()
 
-    x, y = malaria.load_arrays(args.data_dir)
-    _, _, te = malaria.split_indices(len(y), limit=args.limit)
+    x, y = data_mod.load_arrays(args.data_dir)
+    _, _, te = data_mod.split_indices(len(y), limit=args.limit)
 
     def run(chunks):
         """Time each chunk (copy + forward + argmax readback); returns per-chunk seconds and #correct."""
         times, correct = [], 0
         with torch.no_grad():
             for c in chunks:
-                batch = malaria.to_tensor(x[c])           # preprocessing excluded from timing
+                batch = data_mod.to_tensor(x[c])          # preprocessing excluded from timing
                 labels = torch.from_numpy(y[c])
                 sync(device)
                 t0 = time.perf_counter()
