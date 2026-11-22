@@ -1,0 +1,362 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Standard Overleaf-compatible packages
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+% ============================================================================
+% Custom Macros for Pending Empirical Data & Figures
+% Remove or redefine \gap once all experimental numbers are filled in.
+% ============================================================================
+\newcommand{\gap}[1]{\textcolor{red}{\textbf{[GAP: #1]}}}
+
+\newcommand{\placeholderfig}[3]{%
+  \begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.94\linewidth}{%
+      \vspace{0.35em}
+      \textbf{\textcolor{red}{[FIGURE PLACEHOLDER -- #1]}} \\[0.3em]
+      \small #3
+      \vspace{0.35em}
+    }}
+    \caption{#2}
+    \label{fig:#1}
+  \end{figure}%
+}
+
+\newcommand{\placeholderfigwide}[3]{%
+  \begin{figure*}[t]
+    \centering
+    \fbox{\parbox{0.96\linewidth}{%
+      \vspace{0.4em}
+      \textbf{\textcolor{red}{[FIGURE PLACEHOLDER -- #1]}} \\[0.3em]
+      \small #3
+      \vspace{0.4em}
+    }}
+    \caption{#2}
+    \label{fig:#1}
+  \end{figure*}%
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Democratizing Distributed Deep Learning: Sustainable 1F1B Pipeline Parallelism on Heterogeneous Repurposed Office Hardware}
+
+\author{
+  \IEEEauthorblockN{\gap{Author 1 Name}, \gap{Author 2 Name}, \gap{Author 3 Name}}
+  \IEEEauthorblockA{\textit{\gap{Department / Organization}} \\
+  \textit{\gap{Institution / City, Country}} \\
+  \gap{emails@domain.edu}}
+}
+
+\maketitle
+
+% ============================================================================
+% ABSTRACT
+% ============================================================================
+\begin{abstract}
+Modern deep learning workflows increasingly assume access to expensive datacenter GPUs or high-bandwidth cloud APIs, creating a sharp barrier for students, hobbyists, and under-resourced communities without reliable internet or compute budgets. Simultaneously, corporate and institutional hardware refresh cycles generate massive quantities of electronic waste (e-waste) from functional, low-power x86 office workstations. In this paper, we present an open-source, lightweight 1F1B (One-Forward-One-Backward) pipeline-parallelism framework designed to transform arbitrary, repurposed office PCs into a cohesive, secure distributed training and inference cluster over standard Gigabit Ethernet. Our engine combines a non-blocking ZeroMQ point-to-point tensor transport layer, an automatic FLOPS-weighted heterogeneous layer partitioner using the largest-remainder method, and idempotent Ansible playbooks that eliminate the maintenance burden of golden disk images across mismatched hardware.
+
+We evaluate our framework using a two-tier experimental design: (1) a 3-node homogeneous control cluster of repurposed HP ProDesk 400 G5 desktops, and (2) an ad-hoc 4-node heterogeneous cluster formed by bolting on a mismatched generic laptop, compared against single-node CPU and GPU baselines on the UNC Charlotte HPC cluster. Across two representative case studies---a vision CNN (\textit{MobileNetV2} on NIH Malaria cell classification) and a multimodal vision-language model (\textit{SmolVLM-256M} on ScienceQA)---our 1F1B scheduler bounds per-node activation memory to $O(p)$ stages while achieving \gap{ABS-1: X.Xx training speedup vs. single-node CPU}, \gap{ABS-2: Y.Yy inference throughput}, \gap{ABS-3: Z\% lower energy/power draw vs. HPC GPU}, and \gap{ABS-4: W kg of diverted e-waste}. Our results demonstrate a practical, turnkey blueprint for hardware-requisition charities, classrooms, and offline communities to equalize access to machine learning.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Beowulf cluster, pipeline parallelism, 1F1B, heterogeneous computing, e-waste reduction, sustainable AI, ZeroMQ, Ansible
+\end{IEEEkeywords}
+
+% ============================================================================
+% I. INTRODUCTION
+% ============================================================================
+\section{Introduction}
+The rapid scaling of deep neural networks and vision-language models (VLMs) has concentrated machine learning (ML) research and education around costly datacenter accelerators and commercial cloud platforms. For students, independent hobbyists, and communities in low-income or connectivity-constrained regions, cloud APIs and multi-thousand-dollar GPUs remain financially or infrastructurally out of reach. Worse, sensitive educational or medical imaging workflows (such as local clinic screening) often cannot rely on external cloud connectivity due to bandwidth scarcity or data-sovereignty constraints.
+
+At the exact same time, enterprises, universities, and government offices retire millions of capable x86 desktop workstations and laptops every three to five years, contributing heavily to global electronic waste (e-waste)~\cite{sustainable_ai2022}. While an individual retired office PC---typically equipped with 8\,GB of RAM and a modest multi-core CPU---struggles to train or serve modern neural networks alone due to memory and compute bottlenecks, pooling several such machines over a standard Gigabit Ethernet switch creates an aggregate memory and compute pool capable of real ML workloads in the spirit of the original Beowulf cluster~\cite{beowulf1995}.
+
+A particularly compelling deployment model for this paradigm is \textit{hardware-requisition charity organizations} and community technology centers: nonprofits that collect donated corporate office PCs, refurbish them, and distribute pre-configured clusters to under-resourced schools, makerspaces, or rural clinics. Realizing this vision, however, introduces four practical systems challenges:
+\begin{enumerate}
+    \item \textbf{Ad-hoc Hardware Heterogeneity:} Unlike uniform datacenter racks, donated hardware is inherently mismatched. Even if a lab starts with three identical desktops, expanding the cluster by attaching an arbitrary fourth laptop creates severe straggler bottlenecks under naive uniform layer splitting.
+    \item \textbf{Memory \& Micro-Batch Constraints:} Standard 8\,GB office PCs cannot buffer activations for large batches, and small micro-batches destabilize standard Batch Normalization layers.
+    \item \textbf{Deployment & Maintenance Without Golden Images:} Maintaining monolithic ``golden'' disk images across diverse motherboards, network cards, and disk sizes is operationally brittle for volunteer-run or school-managed clusters.
+    \item \textbf{Security on Legacy Equipment:} Older, potentially end-of-life office PCs deployed on shared local networks require practical hardening, patch automation, and strict network isolation.
+\end{enumerate}
+
+To address these challenges, we present a turnkey, dependency-minimal distributed deep learning framework built in Python and PyTorch~\cite{pytorch2019}. Rather than requiring InfiniBand, CUDA, or complex distributed launch daemons, our system runs over commodity TCP/IP Gigabit Ethernet and scales cleanly from a homogeneous desktop group to ad-hoc heterogeneous mixes. Specifically, this paper makes the following contributions:
+\begin{itemize}
+    \item \textbf{ZeroMQ 1F1B Pipeline Engine:} We implement a 3-phase One-Forward-One-Backward (1F1B) scheduler (\texttt{Pipeline1F1BScheduler}) paired with a non-blocking ZeroMQ \texttt{PUSH}/\texttt{PULL} tensor transport (\texttt{TensorTransceiver}), bounding resident activation memory to $O(p)$ stages while supporting both latency- and throughput-oriented pipelined inference.
+    \item \textbf{Automatic FLOPS-Weighted Partitioning:} We introduce \texttt{HeteroPartitioner}, which benchmarks each node's local GEMM throughput at startup, all-gathers capacities across the pipeline, and distributes model layers proportionally using the largest-remainder method.
+    \item \textbf{Ansible-Driven Provisioning \& Hardening:} We replace fragile golden disk images with idempotent Ansible playbooks that automate OS security patching, firewalling, SSH key distribution, NFS mounting, and Python environment synchronization across heterogeneous nodes.
+    \item \textbf{Dual-Workload & Sustainability Evaluation:} We evaluate both a convolutional vision classifier (\textit{MobileNetV2} on NIH Malaria) and a multimodal VLM (\textit{SmolVLM-256M} on ScienceQA) across a 3-node HP ProDesk 400 G5 control cluster, a 4-node heterogeneous extension (+ generic laptop), and UNC Charlotte HPC CPU/GPU baselines, quantifying throughput, accuracy, power draw, and e-waste diversion.
+\end{itemize}
+
+% ============================================================================
+% II. BACKGROUND & RELATED WORK
+% ============================================================================
+\section{Background and Related Work}
+
+\subsection{Beowulf Clusters and Commodity AI}
+Introduced by Sterling et al.~\cite{beowulf1995}, Beowulf clusters demonstrated that parallel scientific computing could be achieved by interconnecting mass-market commodity PCs with standard Ethernet and open-source software. While modern deep learning has largely shifted toward specialized GPU interconnects (NVLink, InfiniBand), the core Beowulf ethos directly serves educational and low-income settings where capital expenditure must approach zero. Our framework modernizes the Beowulf model for PyTorch-based neural network training and inference.
+
+\subsection{Pipeline Parallelism and Memory Bounds}
+Data parallelism replicates the full model on every worker, which fails when a model and its optimizer states exceed a single node's 8\,GB RAM budget or when Gigabit Ethernet saturates during all-reduce gradient synchronization. Pipeline parallelism instead partitions model layers sequentially across $p$ stages, exchanging only boundary activations and gradients.
+
+GPipe~\cite{gpipe2019} executes all $M$ micro-batch forward passes before any backward pass, requiring $O(M)$ activation memory per stage. PipeDream~\cite{pipedream2019} and PipeDream-2BW~\cite{pipedream2bw2021} introduced the 1F1B schedule, interleaving one forward and one backward pass in steady state so each stage retains at most $O(p)$ in-flight activations. Our \texttt{Pipeline1F1BScheduler} adopts synchronous 1F1B with gradient accumulation across $M$ micro-batches before a single optimizer step, achieving exact full-batch mathematical equivalence without weight staleness.
+
+\subsection{Heterogeneous Partitioning and Sustainable AI}
+Uniform layer partitioning assumes homogeneous compute; when applied to mixed hardware, the slowest node dictates pipeline throughput. Prior heterogeneous schedulers often rely on offline profiling or complex ILP solvers. We instead use a lightweight, zero-configuration online GEMM probe coupled with largest-remainder integer allocation. From a sustainability perspective, Wu et al.~\cite{sustainable_ai2022} highlight that embodied carbon from hardware manufacturing dominates the lifecycle footprint of many computing deployments. Extending the productive life of retired office desktops directly avoids new manufacturing emissions and diverts toxic e-waste from landfills.
+
+% ============================================================================
+% III. SYSTEM ARCHITECTURE & DEPLOYMENT
+% ============================================================================
+\section{System Architecture and Deployment}
+
+\subsection{Cluster Topology and Ad-Hoc Scaling}
+Our cluster architecture connects $p$ commodity machines over a local Gigabit Ethernet switch on a private \texttt{10.0.0.0/24} subnet. One node is designated as the head node (Stage 0), responsible for dataset loading, augmentation, and orchestrating worker launches, while the terminal node (Stage $p-1$) computes the loss, accuracy metrics, and backward gradient initiation. A shared directory (\texttt{/shared}) is exported via NFS from Stage 0 to all worker nodes, holding the repository code, packed datasets, and cached pretrained weights so all stages execute against identical artifacts.
+
+To evaluate both baseline scaling and ad-hoc extensibility, we structure the topology around two configurations:
+\begin{itemize}
+    \item \textbf{3-Node Homogeneous Control:} Three identical HP ProDesk 400 G5 desktops (\texttt{prodesk1}--\texttt{prodesk3}) forming a balanced 3-stage pipeline.
+    \item \textbf{4-Node Heterogeneous (``Ramshackle'') Extension:} The three HP ProDesk desktops augmented with an arbitrary fourth machine (a generic consumer laptop) connected to the same switch, testing whether the framework seamlessly absorbs mismatched compute without manual retuning.
+\end{itemize}
+
+\placeholderfigwide{fig1_topology}{Cluster topology and 1F1B pipeline execution timeline. (Left) Physical \texttt{10.0.0.0/24} Gigabit Ethernet topology showing the 3-node ProDesk control group, the ad-hoc 4th laptop, NFS \texttt{/shared} mount, and Ansible control plane. (Right) 3-phase 1F1B schedule (Warmup $\rightarrow$ Steady State $\rightarrow$ Cooldown) across $p$ stages and $M=8$ micro-batches.}{Include TikZ or exported SVG/PDF diagram illustrating ZeroMQ \texttt{PUSH}/\texttt{PULL} ports (\texttt{5550+i} forward, \texttt{5560+i} backward) and the 1F1B bubble/memory bound.}
+
+\subsection{Ansible-Based Provisioning vs. Golden Images}
+In homogeneous lab environments, administrators frequently clone a single ``golden'' disk image across machines. For a repurposed heterogeneous cluster---particularly one assembled by students or hardware-requisition charities from mixed office donations---golden images are brittle and high-maintenance: nodes differ in disk capacity, partition tables (MBR vs.\ GPT), BIOS/UEFI boot modes, and network interface drivers.
+
+We instead manage the entire cluster lifecycle through idempotent \textbf{Ansible playbooks}~\cite{ansible}. From a single control machine (or Stage 0), Ansible connects over SSH to synchronize:
+\begin{enumerate}
+    \item Base OS security updates and system packages (\texttt{nfs-common}, \texttt{ufw}, Python 3);
+    \item Static \texttt{/etc/hosts} mappings and host-based firewall rules;
+    \item Unprivileged service user creation and \texttt{ed25519} SSH key distribution;
+    \item CPU-only PyTorch and dependency installation (\texttt{requirements.txt}) and repository updates.
+\end{enumerate}
+Adding a newly donated fourth or fifth machine requires only appending its IP to the Ansible inventory and running a single playbook command, making the framework practical for non-expert maintainers.
+
+\subsection{Cluster Security for Repurposed Hardware}
+Because retired office PCs may run older hardware platforms or operate in shared school and community networks, security must be enforced by default without impeding usability:
+\begin{itemize}
+    \item \textbf{Network Segmentation \& Firewalling:} All ZeroMQ tensor sockets (TCP ports \texttt{5550--5564}) and NFS exports are bound exclusively to the isolated \texttt{10.0.0.0/24} cluster subnet. Host-based \texttt{ufw} rules explicitly allow traffic only from \texttt{10.0.0.0/24}, preventing external LAN or WAN hosts from injecting forged tensors or mounting \texttt{/shared}.
+    \item \textbf{SSH & Privilege Least-Privilege:} Cluster orchestration via \texttt{launch\_cluster.sh} uses passwordless \texttt{ed25519} key authentication under a dedicated unprivileged \texttt{beowulf} account, with SSH password authentication disabled. NFS exports enforce \texttt{no\_subtree\_check} and restrict access strictly to the cluster CIDR.
+    \item \textbf{Automated Patching & Local-First Privacy:} Ansible playbooks enable unattended security updates so legacy nodes remain patched against known CVEs. Crucially, because all training and inference occur strictly on-premises, sensitive data (e.g., medical blood-smear images) never traverses external networks.
+\end{itemize}
+
+\subsection{Point-to-Point ZeroMQ Tensor Transport}
+Inter-stage communication is handled by \texttt{TensorTransceiver} (\texttt{network/transceiver.py}) using ZeroMQ~\cite{zeromq} \texttt{PUSH}/\texttt{PULL} TCP sockets. Each stage $i$ binds a forward \texttt{PULL} socket on port $5550 + i$ (for $i > 0$) and a backward \texttt{PULL} socket on port $5560 + i$ (for $i < p - 1$), while connecting corresponding \texttt{PUSH} sockets to its immediate neighbors.
+
+To avoid pickle security vulnerabilities and reduce framing overhead, tensors are serialized into two-part ZeroMQ messages: (1) a UTF-8 JSON header containing tensor \texttt{shape} and \texttt{dtype}, and (2) the raw contiguous CPU byte buffer extracted via NumPy. \texttt{TensorTransceiver} also instruments every transfer, accumulating \texttt{recv\_wait\_s} (idle blocking time), \texttt{send\_s} (serialization and socket push time), \texttt{bytes\_sent}, and \texttt{bytes\_recv} for fine-grained bottleneck analysis.
+
+\subsection{FLOPS-Weighted Heterogeneous Partitioner}
+To prevent a slower ad-hoc node (such as an older laptop or throttled desktop) from bottlenecking the pipeline, \texttt{HeteroPartitioner} (\texttt{engine/partitioner.py}) performs automatic capacity-aware model slicing at startup:
+\begin{enumerate}
+    \item \textbf{Local GEMM Probe:} Each node runs \texttt{benchmark\_local\_flops()}, executing a warmup followed by 5 timed $2048 \times 2048$ \texttt{torch.matmul} operations to measure sustained CPU throughput in GFLOPS:
+    \begin{equation}
+        \text{GFLOPS}_i = \frac{5 \times 2 \times 2048^3}{t_{\text{elapsed}} \times 10^9}.
+    \end{equation}
+    \item \textbf{Pipeline All-Gather:} Using \texttt{gather\_cluster\_gflops()}, stages propagate a length-$p$ float vector forward ($0 \rightarrow p-1$) and broadcast the completed vector backward ($p-1 \rightarrow 0$), then zero all transceiver benchmark counters so handshake time is excluded from training metrics.
+    \item \textbf{Largest-Remainder Allocation:} Given $L$ partitionable model layers ($L \ge p$), the partitioner guarantees 1 base layer per node and distributes the remaining $L - p$ layers proportionally to $\text{GFLOPS}_i / \sum_j \text{GFLOPS}_j$ using the largest-remainder method so allocations always sum to $L$.
+\end{enumerate}
+
+\subsection{1F1B Pipeline Scheduler and Pipelined Inference}
+\texttt{Pipeline1F1BScheduler} (\texttt{engine/scheduler.py}) executes synchronous 1F1B across $M$ micro-batches (default $M = 8$, micro-batch size $4$, effective batch size $32$):
+\begin{itemize}
+    \item \textbf{Warmup:} Stage $i$ executes $w_i = \min(p - i - 1, M)$ forward passes, pushing `(input_tensor, output_tensor)` pairs into a FIFO buffer (\texttt{saved\_activations}).
+    \item \textbf{1F1B Steady State:} For the remaining $M - w_i$ micro-batches, each stage alternates one forward pass and one backward pass, popping the oldest entry from \texttt{saved\_activations} and bounding resident activation memory to at most $p$ micro-batches.
+    \item \textbf{Cooldown:} Each stage drains its remaining $w_i$ backward passes. On the terminal stage, micro-batch losses are scaled by $1/M$ before calling \texttt{.backward()} so accumulated gradients match the exact mean-loss gradient of a full batch prior to a single \texttt{optimizer.step()}.
+\end{itemize}
+Because micro-batch size $4$ produces noisy batch statistics, convolutional BatchNorm layers are replaced with \texttt{FrozenBatchNorm2d} to preserve pretrained ImageNet statistics.
+
+For deployment, \texttt{run\_inference()} (\texttt{engine/inference.py}) supports two forward-only modes under \texttt{torch.no\_grad()}: \textit{latency mode} (\texttt{ack\_each=True}), where Stage $p-1$ sends a 1-element acknowledgment back per batch so Stage 0 measures true end-to-end round-trip latency on a single clock, and \textit{throughput mode} (\texttt{ack\_each=False}), which streams all batches continuously with a single terminal acknowledgment.
+
+% ============================================================================
+% IV. DUAL CASE STUDY WORKLOADS & EXPERIMENTAL METHODOLOGY
+% ============================================================================
+\section{Dual Case Study Workloads and Methodology}
+
+To validate generality across both classical computer vision and modern multimodal architectures, we evaluate two registered workloads (\texttt{models/registry.py}):
+
+\subsection{Case Study 1: Medical Imaging (\texttt{malaria\_mobilenet})}
+We fine-tune an ImageNet-pretrained \textit{MobileNetV2}~\cite{mobilenetv2_2018} (19 sequential feature blocks plus adaptive average pooling, dropout $p=0.2$, and a 2-class linear classifier) on the NIH Malaria thin blood-smear dataset~\cite{nih_malaria2018}. All 27,558 cell images (parasitized vs.\ uninfected) are resized to $128 \times 128 \times 3$ and packed into a single \texttt{malaria\_128.npz} archive to minimize filesystem inode overhead over NFS and HPC user directories. A fixed, seeded 80/10/10 train/validation/test split is shared identically across all platforms.
+
+\subsection{Case Study 2: Multimodal VLM (\texttt{scienceqa\_smolvlm})}
+We adapt \textit{SmolVLM-256M-Instruct}~\cite{smolvlm2025} for 5-way multiple-choice classification on the ScienceQA dataset~\cite{scienceqa2022}. Stage 0 unpacks a combined $(B, 4, 128, 128)$ input tensor into RGB pixels and prompt token IDs (length 60), runs the frozen SigLIP vision encoder and trainable pixel-shuffle connector to produce 4 visual tokens of dimension 576, concatenates them with token embeddings into a $(B, 64, 576)$ sequence, and executes the initial SmolLM2 decoder layers. Intermediate stages execute slices of the 30 total causal decoder layers (hidden size 576, 9 attention heads), and the terminal stage applies RMSNorm and projects the final \texttt{"Answer:"} token to 5 choice logits (\texttt{A--E}).
+
+\subsection{Experimental Configurations and Fairness Protocol}
+We compare four hardware configurations under an identical training recipe (effective batch size 32, Adam/AdamW learning rate $10^{-4}$, identical random seeds and data splits):
+\begin{enumerate}
+    \item \textbf{3-Node Homogeneous Control:} 3$\times$ HP ProDesk 400 G5 running \texttt{run\_stage.py} over Gigabit Ethernet.
+    \item \textbf{4-Node Heterogeneous (``Ramshackle''):} 3$\times$ HP ProDesk 400 G5 + 1$\times$ generic laptop, evaluated with both static partitioning and FLOPS-weighted \texttt{HeteroPartitioner}.
+    \item \textbf{HPC Single-Node CPU:} One CPU node on the UNC Charlotte HPC cluster (\texttt{hpc/benchmark\_cpu.slurm}), matching thread/core parity.
+    \item \textbf{HPC Single-Node GPU:} One GPU node on the UNC Charlotte HPC cluster (\texttt{hpc/benchmark\_gpu.slurm}) representing the datacenter baseline.
+\end{enumerate}
+
+All metrics are aggregated by \texttt{benchmark/compare.py}, which merges Stage 0 wall-clock timings with terminal-stage loss and accuracy logs, alongside wall-power measurements (Watts) to compute Energy-to-Target (Wh) and estimated e-waste diverted (kg).
+
+% ============================================================================
+% V. EVALUATION & RESULTS
+% ============================================================================
+\section{Evaluation and Results}
+
+\subsection{Hardware, Power, and Partitioning Balance}
+Table~\ref{tab:hardware} summarizes the specifications, idle/load power draw, and acquisition cost of each platform, while Table~\ref{tab:partition} reports the measured GEMM throughput and resulting layer distributions.
+
+\begin{table}[t]
+\centering
+\caption{Platform Hardware, Power, and Cost Specifications}
+\label{tab:hardware}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Platform / Node} & \textbf{CPU / GPU} & \textbf{Cores} & \textbf{RAM} & \textbf{Power (W)} & \textbf{Est. Cost} \\
+\midrule
+HP ProDesk 400 G5 ($\times 3$) & \gap{HW-1: CPU model} & \gap{HW-2} & \gap{HW-3} & \gap{HW-4} & \gap{HW-5} \\
+Generic Laptop (Node 4) & \gap{HW-6: CPU model} & \gap{HW-7} & \gap{HW-8} & \gap{HW-9} & \gap{HW-10} \\
+UNC-C HPC CPU Node & \gap{HW-11: CPU model} & \gap{HW-12} & \gap{HW-13} & \gap{HW-14} & \gap{HW-15} \\
+UNC-C HPC GPU Node & \gap{HW-16: GPU model} & \gap{HW-17} & \gap{HW-18} & \gap{HW-19} & \gap{HW-20} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Measured Node GFLOPS and Layer Allocations}
+\label{tab:partition}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Cluster Config} & \textbf{Node GFLOPS} & \textbf{MobileNetV2 (19)} & \textbf{SmolVLM (30)} \\
+\midrule
+3-Node Control (Static) & \gap{PART-1} & \gap{PART-2: e.g. 6,7,6} & \gap{PART-3: e.g. 10,10,10} \\
+4-Node Hetero (Static) & \gap{PART-4} & \gap{PART-5} & \gap{PART-6} \\
+4-Node Hetero (FLOPS) & \gap{PART-7} & \gap{PART-8} & \gap{PART-9} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\placeholderfig{fig2_flops_partition}{Measured node GFLOPS vs.\ allocated layers on the 3-node homogeneous control and 4-node heterogeneous (3 ProDesks + 1 generic laptop) clusters.}{Grouped bar chart comparing static uniform splitting against \texttt{HeteroPartitioner} largest-remainder allocation for both \texttt{malaria\_mobilenet} (19 blocks) and \texttt{scienceqa\_smolvlm} (30 decoder layers).}
+
+\subsection{Training Throughput, Convergence, and Memory}
+Table~\ref{tab:train} compares median seconds per epoch, training throughput (\texttt{images/s}), time to target validation accuracy, best validation/test accuracy, and per-node peak resident memory (\texttt{peak\_rss\_mb}).
+
+\begin{table*}[t]
+\centering
+\caption{Training Performance, Accuracy, and Peak Memory Across Workloads}
+\label{tab:train}
+\begin{tabular}{@{}llcccccc@{}}
+\toprule
+\textbf{Workload} & \textbf{Platform} & \textbf{s/epoch} & \textbf{train img/s} & \textbf{Time to Target (s)} & \textbf{Best Val Acc} & \textbf{Test Acc} & \textbf{Peak RSS (MB)} \\
+\midrule
+\multirow{4}{*}{\texttt{malaria\_mobilenet}}
+ & 3-Node ProDesk Control & \gap{TR-1} & \gap{TR-2} & \gap{TR-3} & \gap{TR-4} & \gap{TR-5} & \gap{TR-6} \\
+ & 4-Node Hetero (FLOPS) & \gap{TR-7} & \gap{TR-8} & \gap{TR-9} & \gap{TR-10} & \gap{TR-11} & \gap{TR-12} \\
+ & HPC Single-Node CPU & \gap{TR-13} & \gap{TR-14} & \gap{TR-15} & \gap{TR-16} & \gap{TR-17} & \gap{TR-18} \\
+ & HPC Single-Node GPU & \gap{TR-19} & \gap{TR-20} & \gap{TR-21} & \gap{TR-22} & \gap{TR-23} & \gap{TR-24} \\
+\midrule
+\multirow{4}{*}{\texttt{scienceqa\_smolvlm}}
+ & 3-Node ProDesk Control & \gap{TR-25} & \gap{TR-26} & \gap{TR-27} & \gap{TR-28} & \gap{TR-29} & \gap{TR-30} \\
+ & 4-Node Hetero (FLOPS) & \gap{TR-31} & \gap{TR-32} & \gap{TR-33} & \gap{TR-34} & \gap{TR-35} & \gap{TR-36} \\
+ & HPC Single-Node CPU & \gap{TR-37} & \gap{TR-38} & \gap{TR-39} & \gap{TR-40} & \gap{TR-41} & \gap{TR-42} \\
+ & HPC Single-Node GPU & \gap{TR-43} & \gap{TR-44} & \gap{TR-45} & \gap{TR-46} & \gap{TR-47} & \gap{TR-48} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\placeholderfig{fig3_convergence}{Validation accuracy and training loss vs.\ wall-clock time for \texttt{malaria\_mobilenet} and \texttt{scienceqa\_smolvlm}.}{Two-panel line plot generated from \texttt{results/*/train*.json} showing convergence parity across 3-Node Control, 4-Node Hetero, HPC-CPU, and HPC-GPU.}
+
+\subsection{Pipelined Inference Latency and Throughput}
+Table~\ref{tab:infer} reports single-batch ($b=1$) round-trip latency percentiles (\texttt{p50}, \texttt{p95}) under \texttt{ack\_each=True} and streaming throughput (\texttt{images/s}) at batch sizes $b \in \{1, 8, 32\}$ under \texttt{ack\_each=False}.
+
+\begin{table}[t]
+\centering
+\caption{Inference Latency and Streaming Throughput}
+\label{tab:infer}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+\textbf{Workload} & \textbf{Platform} & \textbf{p50 (ms)} & \textbf{p95 (ms)} & \textbf{b=1 (img/s)} & \textbf{b=8 (img/s)} & \textbf{b=32 (img/s)} \\
+\midrule
+\multirow{4}{*}{\texttt{malaria}}
+ & 3-Node Control & \gap{INF-1} & \gap{INF-2} & \gap{INF-3} & \gap{INF-4} & \gap{INF-5} \\
+ & 4-Node Hetero & \gap{INF-6} & \gap{INF-7} & \gap{INF-8} & \gap{INF-9} & \gap{INF-10} \\
+ & HPC CPU & \gap{INF-11} & \gap{INF-12} & \gap{INF-13} & \gap{INF-14} & \gap{INF-15} \\
+ & HPC GPU & \gap{INF-16} & \gap{INF-17} & \gap{INF-18} & \gap{INF-19} & \gap{INF-20} \\
+\midrule
+\multirow{4}{*}{\texttt{smolvlm}}
+ & 3-Node Control & \gap{INF-21} & \gap{INF-22} & \gap{INF-23} & \gap{INF-24} & \gap{INF-25} \\
+ & 4-Node Hetero & \gap{INF-26} & \gap{INF-27} & \gap{INF-28} & \gap{INF-29} & \gap{INF-30} \\
+ & HPC CPU & \gap{INF-31} & \gap{INF-32} & \gap{INF-33} & \gap{INF-34} & \gap{INF-35} \\
+ & HPC GPU & \gap{INF-36} & \gap{INF-37} & \gap{INF-38} & \gap{INF-39} & \gap{INF-40} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\placeholderfig{fig4_speedup}{Normalized training and inference throughput speedup relative to the single-node HPC CPU baseline.}{Bar chart produced by \texttt{benchmark/compare.py} across \texttt{train img/s} and \texttt{infer img/s} ($b=1, 8, 32$) for 3-Node Control, 4-Node Hetero, and HPC GPU.}
+
+\subsection{Communication Overhead, Memory, and Energy Footprint}
+To isolate network vs.\ compute bottlenecks, Table~\ref{tab:comm_energy} reports ZeroMQ transport counters (\texttt{recv\_wait\_s}, \texttt{send\_s}, total MB transferred per epoch) alongside measured cluster power draw, energy-to-target, and estimated e-waste diverted.
+
+\begin{table}[t]
+\centering
+\caption{Communication Accounting and Sustainability Metrics}
+\label{tab:comm_energy}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Config} & \textbf{Wait (s)} & \textbf{Send (s)} & \textbf{Data (MB/ep)} & \textbf{Energy (Wh/ep)} & \textbf{E-Waste Saved (kg)} \\
+\midrule
+3-Node Control & \gap{COM-1} & \gap{COM-2} & \gap{COM-3} & \gap{ENG-1} & \gap{EW-1} \\
+4-Node (Static) & \gap{COM-4} & \gap{COM-5} & \gap{COM-6} & \gap{ENG-2} & \gap{EW-2} \\
+4-Node (FLOPS) & \gap{COM-7} & \gap{COM-8} & \gap{COM-9} & \gap{ENG-3} & \gap{EW-3} \\
+HPC GPU Baseline & -- & -- & -- & \gap{ENG-4} & 0 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\placeholderfig{fig5_breakdown}{Per-stage epoch time breakdown (local compute vs.\ \texttt{send\_s} vs.\ \texttt{recv\_wait\_s}) on the 4-node heterogeneous cluster under static vs.\ FLOPS-weighted partitioning.}{Stacked bar chart per stage ($0 \dots 3$) demonstrating how \texttt{HeteroPartitioner} reduces \texttt{recv\_wait\_s} straggler bubbles introduced by the 4th generic laptop.}
+
+\placeholderfig{fig6_memory_energy}{Per-stage peak resident memory (\texttt{peak\_rss\_mb}) and energy consumption per epoch across configurations.}{Dual-panel chart illustrating the $O(p)$ memory bound keeping all repurposed nodes comfortably below their 8\,GB RAM limit, paired with Wh/epoch energy comparisons.}
+
+% ============================================================================
+% VI. DISCUSSION, LIMITATIONS, AND SOCIAL IMPACT
+% ============================================================================
+\section{Discussion, Limitations, and Social Impact}
+
+\subsection{Equalizing Access via Requisitioned Hardware}
+Beyond raw throughput, our framework is designed for real-world deployment by students, hobbyists, and charitable organizations that refurbish donated office equipment. By pairing standard Gigabit Ethernet switches with Ansible playbooks and a self-calibrating 1F1B engine, a volunteer or educator can assemble a functional AI lab from heterogeneous donations in under an hour, without cloud subscriptions or specialized sysadmin expertise. In connectivity-limited regions, local-first execution enables offline medical screening (\textit{MobileNetV2}) and interactive STEM tutoring/QA (\textit{SmolVLM-256M}) at near-zero marginal cost.
+
+\subsection{Technical Limitations and Future Work}
+Several limitations remain for future work:
+\begin{itemize}
+    \item \textbf{Uncompressed \texttt{float32} Transfers:} \texttt{TensorTransceiver} currently transmits raw 32-bit activations over TCP; adding \texttt{bfloat16} or 8-bit activation quantization could reduce Gigabit Ethernet saturation on bandwidth-heavy transformer stages.
+    \item \textbf{Static Initial Calibration:} \texttt{HeteroPartitioner} benchmarks GFLOPS once at startup. Thermal throttling on a consumer laptop during multi-hour runs can introduce late-stage stragglers, motivating periodic dynamic re-balancing.
+    \item \textbf{Fault Tolerance:} Because \texttt{Pipeline1F1BScheduler} holds state in memory across synchronous ZeroMQ sockets, a node disconnect aborts the active epoch. Adding periodic NFS checkpointing of stage weights and optimizer states will improve resilience on aging hardware.
+\end{itemize}
+
+% ============================================================================
+% VII. CONCLUSION
+% ============================================================================
+\section{Conclusion}
+We presented an end-to-end, Ansible-provisioned 1F1B pipeline parallelism framework that turns retired, heterogeneous office PCs into secure, energy-efficient distributed deep learning clusters. Using a 3-node HP ProDesk 400 G5 control group and an ad-hoc 4-node heterogeneous cluster incorporating a generic laptop, we demonstrated how automatic FLOPS-weighted partitioning and $O(p)$-bounded ZeroMQ scheduling enable both CNN training and 256M-parameter VLM workflows on 8\,GB commodity nodes. \gap{CONC-1: Insert final quantitative summary of speedup, energy savings, and e-waste diverted once experiments complete.} Ultimately, this work provides an accessible, sustainable pathway for schools, hobbyists, and community charities to democratize machine learning while keeping functional hardware out of landfills.
+
+% ============================================================================
+% REFERENCES
+% ============================================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

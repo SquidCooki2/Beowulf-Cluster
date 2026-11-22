@@ -8,6 +8,7 @@ import torch.optim as optim
 
 from network.transceiver import TensorTransceiver
 from models.registry import get_spec
+from engine.partitioner import HeteroPartitioner, gather_cluster_gflops
 from engine.scheduler import Pipeline1F1BScheduler
 from engine.runner import run_train, run_infer
 
@@ -34,6 +35,8 @@ def main():
     parser.add_argument("--platform-label", type=str, default="engine")
     parser.add_argument("--latency-samples", type=int, default=200)
     parser.add_argument("--infer-batch-sizes", type=int, nargs="+", default=[1, 8, 32])
+    parser.add_argument("--partition", choices=["auto", "flops", "static"], default="auto",
+                        help="auto: FLOPS-weighted split (falls back to static when --weights-dir is set)")
     args = parser.parse_args()
 
     # Load cluster config
@@ -50,12 +53,28 @@ def main():
     spec = get_spec(model_name)
     logging.info(f"Initializing Stage {stage_id} on {stage_info['hostname']} ({stage_info['ip']}) - Device: {stage_info['device_type']} - Model: {model_name}")
 
-    # Sliced models
+    # Setup ZeroMQ communication first so stages can exchange FLOPS benchmarks
+    num_stages = len(config["stages"])
+    transceiver = TensorTransceiver(stage_id=stage_id, config=config)
+
+    # Determine layer split across stages
     if args.threads:
         torch.set_num_threads(args.threads)
     torch.manual_seed(args.seed)
     args.model_name = model_name
-    all_stages = spec.create_stages(len(config["stages"]), pretrained=not args.no_pretrained)
+
+    use_flops = (args.partition == "flops") or (args.partition == "auto" and not args.weights_dir)
+    layer_counts = None
+    if use_flops:
+        local_gflops = HeteroPartitioner.benchmark_local_flops()
+        node_gflops = gather_cluster_gflops(stage_id, num_stages, transceiver, local_gflops)
+        dist = HeteroPartitioner(num_layers=spec.num_layers).compute_layer_distribution(node_gflops)
+        layer_counts = [dist[i] for i in range(num_stages)]
+        if stage_id == 0:
+            logging.info(f"FLOPS-weighted partition: gflops={ {k: round(v, 2) for k, v in node_gflops.items()} } -> layers={layer_counts}")
+
+    # Sliced models
+    all_stages = spec.create_stages(num_stages, pretrained=not args.no_pretrained, layer_counts=layer_counts)
     local_stage_model = all_stages[stage_id]
     if args.weights_dir:
         local_stage_model.load_state_dict(torch.load(os.path.join(args.weights_dir, f"stage{stage_id}.pt")))
@@ -63,11 +82,8 @@ def main():
     
     # Optimizer and Loss
     optimizer = optim.Adam([p for p in local_stage_model.parameters() if p.requires_grad], lr=config["learning_rate"])
-    last = len(config["stages"]) - 1
+    last = num_stages - 1
     criterion = (nn.CrossEntropyLoss() if spec.loss == "ce" else nn.MSELoss()) if stage_id == last else None
-
-    # Setup ZeroMQ communication
-    transceiver = TensorTransceiver(stage_id=stage_id, config=config)
 
     # Instantiate 1F1B Scheduler
     scheduler = Pipeline1F1BScheduler(

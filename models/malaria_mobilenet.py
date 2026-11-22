@@ -5,11 +5,12 @@ from torchvision.ops import FrozenBatchNorm2d
 from models.stage_utils import split_sequential
 
 
-def create_malaria_stages(num_stages: int = 5, num_classes: int = 2, pretrained: bool = True):
+def create_malaria_stages(num_stages: int = 5, num_classes: int = 2, pretrained: bool = True, layer_counts=None):
     """
     MobileNetV2 (ImageNet-pretrained) for parasitized/uninfected blood-smear cells,
     sliced into `num_stages` sequential stages. The 19 `features` blocks are split
-    evenly; the last stage also holds pooling + the classifier head.
+    according to `layer_counts` (or evenly by default); the last stage also holds
+    pooling + the classifier head.
 
     BatchNorm is frozen (FrozenBatchNorm2d): the engine uses tiny micro-batches
     (4), where batch statistics are unreliable, so pretrained statistics are kept.
@@ -17,7 +18,7 @@ def create_malaria_stages(num_stages: int = 5, num_classes: int = 2, pretrained:
     weights = models.MobileNet_V2_Weights.IMAGENET1K_V1 if pretrained else None
     base = models.mobilenet_v2(weights=weights, norm_layer=FrozenBatchNorm2d)
 
-    stages = split_sequential(base.features, num_stages)
+    stages = split_sequential(base.features, num_stages, layer_counts=layer_counts)
     head = nn.Sequential(
         nn.AdaptiveAvgPool2d(1),
         nn.Flatten(),

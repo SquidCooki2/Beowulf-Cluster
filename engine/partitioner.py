@@ -34,21 +34,65 @@ class HeteroPartitioner:
 
     def compute_layer_distribution(self, node_gflops: dict) -> dict:
         """
-        Calculates layer allocations based on node compute capacity.
+        Calculates layer allocations based on node compute capacity using the
+        largest-remainder method so allocations always sum to self.num_layers.
         node_gflops: dict of {node_id: gflops_value}
         Returns: dict of {node_id: num_layers}
         """
-        total_flops = sum(node_gflops.values())
-        allocations = {}
-        allocated = 0
         node_ids = list(node_gflops.keys())
+        if not node_ids:
+            return {}
+        if self.num_layers < len(node_ids):
+            raise ValueError(
+                f"Cannot distribute {self.num_layers} layers across {len(node_ids)} nodes (need >= 1 layer/node)"
+            )
 
-        for node_id in node_ids[:-1]:
-            ratio = node_gflops[node_id] / total_flops
-            layers = max(1, int(round(self.num_layers * ratio)))
-            allocations[node_id] = layers
-            allocated += layers
+        total_flops = sum(node_gflops.values())
+        if total_flops <= 0:
+            # Uniform fallback if benchmark readings are non-positive
+            base, extra = divmod(self.num_layers, len(node_ids))
+            return {nid: base + (1 if i < extra else 0) for i, nid in enumerate(node_ids)}
 
-        # Allocate remainder to the last node
-        allocations[node_ids[-1]] = max(1, self.num_layers - allocated)
+        # Guarantee at least 1 layer per node, then distribute remaining layers proportionally
+        remaining = self.num_layers - len(node_ids)
+        exact_extra = {nid: remaining * (node_gflops[nid] / total_flops) for nid in node_ids}
+        allocations = {nid: 1 + int(exact_extra[nid]) for nid in node_ids}
+        leftover = self.num_layers - sum(allocations.values())
+
+        by_remainder = sorted(node_ids, key=lambda nid: exact_extra[nid] - int(exact_extra[nid]), reverse=True)
+        for nid in by_remainder[:leftover]:
+            allocations[nid] += 1
+
         return allocations
+
+
+def gather_cluster_gflops(stage_id: int, num_stages: int, transceiver, local_gflops: float) -> dict:
+    """
+    All-gather each stage's measured GFLOPS over the pipeline transceiver
+    (forward pass 0 -> N-1, then backward broadcast N-1 -> 0) and reset
+    transceiver benchmark counters so startup handshake time is excluded.
+    """
+    if num_stages == 1:
+        return {0: local_gflops}
+
+    if stage_id == 0:
+        vec = torch.zeros(num_stages, dtype=torch.float32)
+        vec[0] = local_gflops
+        transceiver.send_forward(vec)
+        vec = transceiver.recv_backward()
+    elif stage_id == num_stages - 1:
+        vec = transceiver.recv_forward()
+        vec[stage_id] = local_gflops
+        transceiver.send_backward(vec)
+    else:
+        vec = transceiver.recv_forward()
+        vec[stage_id] = local_gflops
+        transceiver.send_forward(vec)
+        vec = transceiver.recv_backward()
+        transceiver.send_backward(vec)
+
+    transceiver.recv_wait_s = 0.0
+    transceiver.send_s = 0.0
+    transceiver.bytes_sent = 0
+    transceiver.bytes_recv = 0
+    return {i: float(vec[i].item()) for i in range(num_stages)}

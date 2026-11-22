@@ -253,7 +253,7 @@ def _load_hf_components(pretrained: bool):
     }
 
 
-def create_smolvlm_stages(num_stages: int = 5, num_classes: int = NUM_CHOICES, pretrained: bool = True):
+def create_smolvlm_stages(num_stages: int = 5, num_classes: int = NUM_CHOICES, pretrained: bool = True, layer_counts=None):
     """Create `num_stages` sequential `nn.Module` stages for SmolVLM-256M on ScienceQA."""
     hf = _load_hf_components(pretrained=pretrained)
 
@@ -280,7 +280,12 @@ def create_smolvlm_stages(num_stages: int = 5, num_classes: int = NUM_CHOICES, p
         vocab_size = VOCAB_SIZE
         answer_head = nn.Linear(HIDDEN_SIZE, num_classes, bias=False)
 
-    counts = _layer_counts(len(all_layers), num_stages)
+    if layer_counts is not None:
+        counts = list(layer_counts)
+        if len(counts) != num_stages or sum(counts) != len(all_layers) or any(c < 1 for c in counts):
+            raise ValueError(f"Invalid layer_counts {counts} for {len(all_layers)} layers and {num_stages} stages")
+    else:
+        counts = _layer_counts(len(all_layers), num_stages)
     slices, idx = [], 0
     for c in counts:
         slices.append(nn.ModuleList(all_layers[idx:idx + c]))
