@@ -1,0 +1,37 @@
+{
+  "cluster_name": "AgriBeowulf-3Node-ProDesk",
+  "stages": [
+    {
+      "stage_id": 0,
+      "hostname": "prodesk2",
+      "ip": "192.168.1.12",
+      "fwd_port": 5550,
+      "bwd_port": 5560,
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 6
+    },
+    {
+      "stage_id": 1,
+      "hostname": "prodesk1",
+      "ip": "192.168.1.11",
+      "fwd_port": 5551,
+      "bwd_port": 5561,
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 7
+    },
+    {
+      "stage_id": 2,
+      "hostname": "prodesk3",
+      "ip": "192.168.1.13",
+      "fwd_port": 5552,
+      "bwd_port": 5562,
+      "device_type": "HP_ProDesk_400_G5",
+      "layers": 6
+    }
+  ],
+  "batch_size": 32,
+  "micro_batch_size": 4,
+  "num_microbatches": 8,
+  "model": "malaria_mobilenet",
+  "learning_rate": 0.0001
+}

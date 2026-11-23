@@ -1,0 +1,157 @@
+{
+  "kind": "train",
+  "platform": "engine",
+  "run_id": "engine-malaria-3node",
+  "stage": 1,
+  "num_stages": 3,
+  "model": "malaria_mobilenet",
+  "system": {
+    "hostname": "prodesk1",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 10,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_s": 194.39789957099993,
+      "val_s": 13.303825127999971,
+      "images_per_s": 113.25225246047012,
+      "comm": {
+        "recv_wait_s": 120.37574347399095,
+        "send_s": 2.179280130020288,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 2,
+      "train_s": 195.31954452900027,
+      "val_s": 13.37433406700029,
+      "images_per_s": 112.71785449372247,
+      "comm": {
+        "recv_wait_s": 120.39597158200968,
+        "send_s": 2.201582150009017,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 3,
+      "train_s": 193.95571945500024,
+      "val_s": 13.713640354999825,
+      "images_per_s": 113.51044486784491,
+      "comm": {
+        "recv_wait_s": 120.23441373900005,
+        "send_s": 2.2117160189768583,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 4,
+      "train_s": 193.7586035000004,
+      "val_s": 13.396845582999958,
+      "images_per_s": 113.62592216453477,
+      "comm": {
+        "recv_wait_s": 119.69517043995711,
+        "send_s": 2.2055622409739044,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 5,
+      "train_s": 193.4824354819998,
+      "val_s": 13.391218988999753,
+      "images_per_s": 113.78810663176817,
+      "comm": {
+        "recv_wait_s": 118.80818059198964,
+        "send_s": 2.2043352779955967,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 6,
+      "train_s": 194.9135268529999,
+      "val_s": 13.366504274999897,
+      "images_per_s": 112.95265318657977,
+      "comm": {
+        "recv_wait_s": 120.54332654300015,
+        "send_s": 2.205771268007993,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 7,
+      "train_s": 194.24059086100033,
+      "val_s": 13.25777282099989,
+      "images_per_s": 113.34397152732497,
+      "comm": {
+        "recv_wait_s": 119.8119576149893,
+        "send_s": 2.2139201079994564,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 8,
+      "train_s": 193.92226376500003,
+      "val_s": 13.82693701800008,
+      "images_per_s": 113.53002781918612,
+      "comm": {
+        "recv_wait_s": 119.38732910698718,
+        "send_s": 2.1953469200184372,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 9,
+      "train_s": 194.88714724200054,
+      "val_s": 13.70191239900032,
+      "images_per_s": 112.96794227616097,
+      "comm": {
+        "recv_wait_s": 120.38188627897762,
+        "send_s": 2.2007341969756453,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    },
+    {
+      "epoch": 10,
+      "train_s": 194.80444823000016,
+      "val_s": 13.347643222000443,
+      "images_per_s": 113.01589979098591,
+      "comm": {
+        "recv_wait_s": 120.75056612102617,
+        "send_s": 2.195486697988599,
+        "bytes_sent": 1262980864,
+        "bytes_recv": 1262485504
+      }
+    }
+  ],
+  "peak_rss_mb": 389.71484375
+}

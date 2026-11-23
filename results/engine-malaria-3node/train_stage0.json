@@ -1,0 +1,157 @@
+{
+  "kind": "train",
+  "platform": "engine",
+  "run_id": "engine-malaria-3node",
+  "stage": 0,
+  "num_stages": 3,
+  "model": "malaria_mobilenet",
+  "system": {
+    "hostname": "prodesk2",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 10,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_s": 197.83716535500025,
+      "val_s": 13.287198180999894,
+      "images_per_s": 111.28343837971167,
+      "comm": {
+        "recv_wait_s": 7.066813074984111,
+        "send_s": 1.7174626600221927,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 2,
+      "train_s": 195.34228034199987,
+      "val_s": 13.353796869000234,
+      "images_per_s": 112.70473530592044,
+      "comm": {
+        "recv_wait_s": 3.7220401579979807,
+        "send_s": 1.6005202969968195,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 3,
+      "train_s": 193.97259403099997,
+      "val_s": 13.699603110000226,
+      "images_per_s": 113.5005700675503,
+      "comm": {
+        "recv_wait_s": 2.98584547100927,
+        "send_s": 1.7902898079892111,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 4,
+      "train_s": 193.77740206499993,
+      "val_s": 13.378557214000011,
+      "images_per_s": 113.61489918527775,
+      "comm": {
+        "recv_wait_s": 3.720755135004765,
+        "send_s": 1.6378371069954483,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 5,
+      "train_s": 193.50302402299985,
+      "val_s": 13.371729941000012,
+      "images_per_s": 113.77599968351487,
+      "comm": {
+        "recv_wait_s": 3.251798797020001,
+        "send_s": 1.6213841570038312,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 6,
+      "train_s": 194.93285412700016,
+      "val_s": 13.347791231999963,
+      "images_per_s": 112.94145411556134,
+      "comm": {
+        "recv_wait_s": 3.611757551010669,
+        "send_s": 1.7865261220003958,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 7,
+      "train_s": 194.26449871500017,
+      "val_s": 13.239009967999664,
+      "images_per_s": 113.33002244686527,
+      "comm": {
+        "recv_wait_s": 3.826354995010206,
+        "send_s": 1.6201982920038063,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 8,
+      "train_s": 193.9455152440005,
+      "val_s": 13.810213091999685,
+      "images_per_s": 113.51641708395236,
+      "comm": {
+        "recv_wait_s": 3.7367397779507883,
+        "send_s": 1.6695470460063007,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 9,
+      "train_s": 194.90726015500059,
+      "val_s": 13.6857351940007,
+      "images_per_s": 112.956284863333,
+      "comm": {
+        "recv_wait_s": 3.285609805990134,
+        "send_s": 1.7792784870198375,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    },
+    {
+      "epoch": 10,
+      "train_s": 194.82432489500025,
+      "val_s": 13.330425359999936,
+      "images_per_s": 113.00436951014937,
+      "comm": {
+        "recv_wait_s": 3.9003022919687282,
+        "send_s": 1.8219032739889371,
+        "bytes_sent": 721673472,
+        "bytes_recv": 721420288
+      }
+    }
+  ],
+  "peak_rss_mb": 1950.34375
+}

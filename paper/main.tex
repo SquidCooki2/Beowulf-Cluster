@@ -220,7 +220,7 @@ Table~\ref{tab:hardware} summarizes the specifications, idle/load power draw, an
 \toprule
 \textbf{Platform / Node} & \textbf{CPU / GPU} & \textbf{Cores} & \textbf{RAM} & \textbf{Power (W)} & \textbf{Est. Cost} \\
 \midrule
-HP ProDesk 400 G5 ($\times 3$) & \gap{HW-1: CPU model} & \gap{HW-2} & \gap{HW-3} & \gap{HW-4} & \gap{HW-5} \\
+HP ProDesk 400 G5 ($\times 3$) & Intel Core i5-9500T @ 2.20\,GHz & 6/node & 8--16\,GB & \gap{HW-4} & \gap{HW-5} \\
 Generic Laptop (Node 4) & \gap{HW-6: CPU model} & \gap{HW-7} & \gap{HW-8} & \gap{HW-9} & \gap{HW-10} \\
 UNC-C HPC CPU Node & \gap{HW-11: CPU model} & \gap{HW-12} & \gap{HW-13} & \gap{HW-14} & \gap{HW-15} \\
 UNC-C HPC GPU Node & \gap{HW-16: GPU model} & \gap{HW-17} & \gap{HW-18} & \gap{HW-19} & \gap{HW-20} \\
@@ -238,7 +238,7 @@ UNC-C HPC GPU Node & \gap{HW-16: GPU model} & \gap{HW-17} & \gap{HW-18} & \gap{H
 \toprule
 \textbf{Cluster Config} & \textbf{Node GFLOPS} & \textbf{MobileNetV2 (19)} & \textbf{SmolVLM (30)} \\
 \midrule
-3-Node Control (Static) & \gap{PART-1} & \gap{PART-2: e.g. 6,7,6} & \gap{PART-3: e.g. 10,10,10} \\
+3-Node Control (Static) & 304.8, 423.2, 429.9 & 7, 6, 6 & \gap{PART-3: e.g. 10,10,10} \\
 4-Node Hetero (Static) & \gap{PART-4} & \gap{PART-5} & \gap{PART-6} \\
 4-Node Hetero (FLOPS) & \gap{PART-7} & \gap{PART-8} & \gap{PART-9} \\
 \bottomrule
@@ -249,7 +249,9 @@ UNC-C HPC GPU Node & \gap{HW-16: GPU model} & \gap{HW-17} & \gap{HW-18} & \gap{H
 \placeholderfig{fig2_flops_partition}{Measured node GFLOPS vs.\ allocated layers on the 3-node homogeneous control and 4-node heterogeneous (3 ProDesks + 1 generic laptop) clusters.}{Grouped bar chart comparing static uniform splitting against \texttt{HeteroPartitioner} largest-remainder allocation for both \texttt{malaria\_mobilenet} (19 blocks) and \texttt{scienceqa\_smolvlm} (30 decoder layers).}
 
 \subsection{Training Throughput, Convergence, and Memory}
-Table~\ref{tab:train} compares median seconds per epoch, training throughput (\texttt{images/s}), time to target validation accuracy, best validation/test accuracy, and per-node peak resident memory (\texttt{peak\_rss\_mb}).
+Table~\ref{tab:train} compares median seconds per epoch, training throughput (\texttt{images/s}), time to target validation accuracy ($95\%$), best validation/test accuracy, and per-node peak resident memory (\texttt{peak\_rss\_mb}).
+
+On the 3-node HP ProDesk 400 G5 control cluster (\texttt{malaria\_mobilenet}, static \texttt{[7, 6, 6]} split), synchronous 1F1B training sustains a median throughput of \textbf{113.2\,img/s} (\textbf{208.0\,s/epoch}, comprising 194.5\,s training and 13.4\,s validation) across the 22,046-image training split. The pipeline exceeds the $95\%$ validation target on its very first epoch (\textbf{211\,s} wall-clock, $96.48\%$ validation accuracy), reaches a peak validation accuracy of \textbf{97.24\%} at Epoch~6, and achieves \textbf{96.08\%} held-out test accuracy ($n = 2{,}756$). Per-node peak resident memory remains well within commodity limits: worker nodes (Stages 1 and 2) peak at just \textbf{389.7\,MB} and \textbf{397.2\,MB} RSS respectively, while Stage~0 peaks at \textbf{1,950.3\,MB} due to caching the full 1.3\,GB \texttt{malaria\_128.npz} image array in RAM.
 
 \begin{table*}[t]
 \centering
@@ -260,7 +262,7 @@ Table~\ref{tab:train} compares median seconds per epoch, training throughput (\t
 \textbf{Workload} & \textbf{Platform} & \textbf{s/epoch} & \textbf{train img/s} & \textbf{Time to Target (s)} & \textbf{Best Val Acc} & \textbf{Test Acc} & \textbf{Peak RSS (MB)} \\
 \midrule
 \multirow{4}{*}{\texttt{malaria\_mobilenet}}
- & 3-Node ProDesk Control & \gap{TR-1} & \gap{TR-2} & \gap{TR-3} & \gap{TR-4} & \gap{TR-5} & \gap{TR-6} \\
+ & 3-Node ProDesk Control & 208.0 & 113.2 & 211 & 97.24\% & 96.08\% & 1950 \\
  & 4-Node Hetero (FLOPS) & \gap{TR-7} & \gap{TR-8} & \gap{TR-9} & \gap{TR-10} & \gap{TR-11} & \gap{TR-12} \\
  & HPC Single-Node CPU & \gap{TR-13} & \gap{TR-14} & \gap{TR-15} & \gap{TR-16} & \gap{TR-17} & \gap{TR-18} \\
  & HPC Single-Node GPU & \gap{TR-19} & \gap{TR-20} & \gap{TR-21} & \gap{TR-22} & \gap{TR-23} & \gap{TR-24} \\
@@ -279,6 +281,8 @@ Table~\ref{tab:train} compares median seconds per epoch, training throughput (\t
 \subsection{Pipelined Inference Latency and Throughput}
 Table~\ref{tab:infer} reports single-batch ($b=1$) round-trip latency percentiles (\texttt{p50}, \texttt{p95}) under \texttt{ack\_each=True} and streaming throughput (\texttt{images/s}) at batch sizes $b \in \{1, 8, 32\}$ under \texttt{ack\_each=False}.
 
+For \texttt{malaria\_mobilenet} on the 3-node ProDesk cluster, end-to-end single-image inference completes in \textbf{9.82\,ms} median latency (\textbf{10.96\,ms} p95, 12.56\,ms p99 across $n=200$ samples), well within interactive clinical-screening budgets. In streaming mode across the 2,756-image test set ($96.08\%$ accuracy), pipelined execution achieves \textbf{265.4\,img/s} at $b=1$ and \textbf{255.2\,img/s} at $b=8$, tapering slightly to \textbf{205.7\,img/s} at $b=32$ as larger activation tensors increase per-stage CPU cache pressure and pipeline fill/drain latency.
+
 \begin{table}[t]
 \centering
 \caption{Inference Latency and Streaming Throughput}
@@ -289,7 +293,7 @@ Table~\ref{tab:infer} reports single-batch ($b=1$) round-trip latency percentile
 \textbf{Workload} & \textbf{Platform} & \textbf{p50 (ms)} & \textbf{p95 (ms)} & \textbf{b=1 (img/s)} & \textbf{b=8 (img/s)} & \textbf{b=32 (img/s)} \\
 \midrule
 \multirow{4}{*}{\texttt{malaria}}
- & 3-Node Control & \gap{INF-1} & \gap{INF-2} & \gap{INF-3} & \gap{INF-4} & \gap{INF-5} \\
+ & 3-Node Control & 9.82 & 10.96 & 265.4 & 255.2 & 205.7 \\
  & 4-Node Hetero & \gap{INF-6} & \gap{INF-7} & \gap{INF-8} & \gap{INF-9} & \gap{INF-10} \\
  & HPC CPU & \gap{INF-11} & \gap{INF-12} & \gap{INF-13} & \gap{INF-14} & \gap{INF-15} \\
  & HPC GPU & \gap{INF-16} & \gap{INF-17} & \gap{INF-18} & \gap{INF-19} & \gap{INF-20} \\
@@ -307,7 +311,9 @@ Table~\ref{tab:infer} reports single-batch ($b=1$) round-trip latency percentile
 \placeholderfig{fig4_speedup}{Normalized training and inference throughput speedup relative to the single-node HPC CPU baseline.}{Bar chart produced by \texttt{benchmark/compare.py} across \texttt{train img/s} and \texttt{infer img/s} ($b=1, 8, 32$) for 3-Node Control, 4-Node Hetero, and HPC GPU.}
 
 \subsection{Communication Overhead, Memory, and Energy Footprint}
-To isolate network vs.\ compute bottlenecks, Table~\ref{tab:comm_energy} reports ZeroMQ transport counters (\texttt{recv\_wait\_s}, \texttt{send\_s}, total MB transferred per epoch) alongside measured cluster power draw, energy-to-target, and estimated e-waste diverted.
+To isolate network vs.\ compute bottlenecks, Table~\ref{tab:comm_energy} reports ZeroMQ transport counters (\texttt{recv\_wait\_s}, \texttt{send\_s}, total MiB transferred per epoch) alongside measured cluster power draw, energy-to-target, and estimated e-waste diverted.
+
+On the 3-node \texttt{malaria\_mobilenet} control run, the pipeline exchanges \textbf{2,408.9\,MiB/epoch} across both inter-stage links (688.2\,MiB Stage~$0 \rightarrow 1$ and 516.2\,MiB Stage~$1 \rightarrow 2$ in each direction), yet ZeroMQ serialization and TCP transmission consume only \textbf{1.03--2.20\,s} per stage (\textbf{1.64\,s} mean, $<1.2\%$ of epoch time), confirming that Gigabit Ethernet is not the bottleneck. Instead, the per-stage wait profile reveals compute imbalance under static \texttt{[7, 6, 6]} slicing: Stage~0 is nearly saturated (\texttt{recv\_wait\_s} = 3.7\,s) due to higher-resolution early MobileNetV2 convolutions and CPU data augmentation, leaving Stages~1 and~2 idle for \textbf{120.3\,s} and \textbf{107.5\,s} per epoch respectively (77.2\,s cluster mean). This empirically motivates both FLOPS-aware partitioning and future stage-compute-weighted (rather than layer-count-only) splitting.
 
 \begin{table}[t]
 \centering
@@ -316,9 +322,9 @@ To isolate network vs.\ compute bottlenecks, Table~\ref{tab:comm_energy} reports
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{@{}lccccc@{}}
 \toprule
-\textbf{Config} & \textbf{Wait (s)} & \textbf{Send (s)} & \textbf{Data (MB/ep)} & \textbf{Energy (Wh/ep)} & \textbf{E-Waste Saved (kg)} \\
+\textbf{Config} & \textbf{Wait (s)} & \textbf{Send (s)} & \textbf{Data (MiB/ep)} & \textbf{Energy (Wh/ep)} & \textbf{E-Waste Saved (kg)} \\
 \midrule
-3-Node Control & \gap{COM-1} & \gap{COM-2} & \gap{COM-3} & \gap{ENG-1} & \gap{EW-1} \\
+3-Node Control & 77.2 (mean) & 1.64 (mean) & 2408.9 & \gap{ENG-1} & \gap{EW-1} \\
 4-Node (Static) & \gap{COM-4} & \gap{COM-5} & \gap{COM-6} & \gap{ENG-2} & \gap{EW-2} \\
 4-Node (FLOPS) & \gap{COM-7} & \gap{COM-8} & \gap{COM-9} & \gap{ENG-3} & \gap{EW-3} \\
 HPC GPU Baseline & -- & -- & -- & \gap{ENG-4} & 0 \\

@@ -1,0 +1,55 @@
+{
+  "kind": "infer",
+  "platform": "engine",
+  "run_id": "engine-malaria-3node",
+  "stage": 2,
+  "num_stages": 3,
+  "model": "malaria_mobilenet",
+  "system": {
+    "hostname": "prodesk3",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 3,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "latency_b1": {
+    "acc": 0.955
+  },
+  "throughput": {
+    "1": {
+      "acc": 0.9608127721335269
+    },
+    "8": {
+      "acc": 0.9608127721335269
+    },
+    "32": {
+      "acc": 0.9608127721335269
+    }
+  },
+  "comm": {
+    "recv_wait_s": 24.380759598012446,
+    "send_s": 0.014855366005576798,
+    "bytes_sent": 8208,
+    "bytes_recv": 210370560
+  },
+  "peak_rss_mb": 376.05859375
+}

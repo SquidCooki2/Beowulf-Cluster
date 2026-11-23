@@ -1,0 +1,65 @@
+{
+  "kind": "infer",
+  "platform": "engine",
+  "run_id": "engine-malaria-3node",
+  "stage": 0,
+  "num_stages": 3,
+  "model": "malaria_mobilenet",
+  "system": {
+    "hostname": "prodesk2",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 3,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "latency_b1": {
+    "n": 200,
+    "mean_ms": 9.930192005017489,
+    "p50_ms": 9.81755000020712,
+    "p95_ms": 10.959644649801703,
+    "p99_ms": 12.558555700325087
+  },
+  "throughput": {
+    "1": {
+      "images_per_s": 265.43806167247084,
+      "elapsed_s": 10.382836517999749,
+      "n": 2756
+    },
+    "8": {
+      "images_per_s": 255.23474116076818,
+      "elapsed_s": 10.797903089000101,
+      "n": 2756
+    },
+    "32": {
+      "images_per_s": 205.66296442548352,
+      "elapsed_s": 13.400565375000042,
+      "n": 2756
+    }
+  },
+  "comm": {
+    "recv_wait_s": 5.047198961000504,
+    "send_s": 0.5247288219979964,
+    "bytes_sent": 280650752,
+    "bytes_recv": 864
+  },
+  "peak_rss_mb": 1823.31640625
+}

@@ -1,5 +1,6 @@
 # Data and downloaded archives
-data/
+data/*
+!data/*.py
 *.zip
 *.npz
 
