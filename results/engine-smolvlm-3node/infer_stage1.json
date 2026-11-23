@@ -1,0 +1,42 @@
+{
+  "kind": "infer",
+  "platform": "engine",
+  "run_id": "engine-smolvlm-3node",
+  "stage": 1,
+  "num_stages": 3,
+  "model": "scienceqa_smolvlm",
+  "system": {
+    "hostname": "prodesk1",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 3,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "throughput": {},
+  "comm": {
+    "recv_wait_s": 186.05109544706647,
+    "send_s": 0.4683321420234279,
+    "bytes_sent": 500534666,
+    "bytes_recv": 500466528
+  },
+  "peak_rss_mb": 1831.08203125
+}

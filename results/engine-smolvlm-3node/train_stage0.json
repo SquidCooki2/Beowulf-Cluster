@@ -1,0 +1,157 @@
+{
+  "kind": "train",
+  "platform": "engine",
+  "run_id": "engine-smolvlm-3node",
+  "stage": 0,
+  "num_stages": 3,
+  "model": "scienceqa_smolvlm",
+  "system": {
+    "hostname": "prodesk2",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 10,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_s": 1070.2414198079987,
+      "val_s": 64.36970075700083,
+      "images_per_s": 7.714147338346451,
+      "comm": {
+        "recv_wait_s": 56.84213278202333,
+        "send_s": 0.8451901709959202,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 2,
+      "train_s": 1083.8864725139993,
+      "val_s": 62.399424442000964,
+      "images_per_s": 7.61703389548795,
+      "comm": {
+        "recv_wait_s": 51.44843196997499,
+        "send_s": 0.8878300359847344,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 3,
+      "train_s": 1080.3107042429983,
+      "val_s": 61.80302729899995,
+      "images_per_s": 7.64224585350674,
+      "comm": {
+        "recv_wait_s": 50.54219157597254,
+        "send_s": 0.8257908189862064,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 4,
+      "train_s": 1080.3885708029993,
+      "val_s": 62.166262685999754,
+      "images_per_s": 7.64169505594059,
+      "comm": {
+        "recv_wait_s": 50.50824336102232,
+        "send_s": 0.839353704941459,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 5,
+      "train_s": 1078.4093113069994,
+      "val_s": 62.26195956400079,
+      "images_per_s": 7.655720247810155,
+      "comm": {
+        "recv_wait_s": 48.642908174955664,
+        "send_s": 0.8862327359838673,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 6,
+      "train_s": 1079.6177214869986,
+      "val_s": 62.58082743600062,
+      "images_per_s": 7.647151242227385,
+      "comm": {
+        "recv_wait_s": 49.43746645804458,
+        "send_s": 0.8721303829697717,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 7,
+      "train_s": 1077.9772933420008,
+      "val_s": 62.50230884700068,
+      "images_per_s": 7.658788409544623,
+      "comm": {
+        "recv_wait_s": 48.642690775981464,
+        "send_s": 0.8609282510369667,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 8,
+      "train_s": 1077.7787677670021,
+      "val_s": 61.93657084000006,
+      "images_per_s": 7.6601991493163375,
+      "comm": {
+        "recv_wait_s": 47.39627808805744,
+        "send_s": 0.8380723269219743,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 9,
+      "train_s": 1404.3514593319996,
+      "val_s": 62.562742687001446,
+      "images_per_s": 5.87887023945351,
+      "comm": {
+        "recv_wait_s": 44.091548914904706,
+        "send_s": 0.8273500140094256,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    },
+    {
+      "epoch": 10,
+      "train_s": 1079.8540708559995,
+      "val_s": 62.919413397001335,
+      "images_per_s": 7.645477498135906,
+      "comm": {
+        "recv_wait_s": 49.69200543797342,
+        "send_s": 0.8732457930236706,
+        "bytes_sent": 1217485488,
+        "bytes_recv": 1217396736
+      }
+    }
+  ],
+  "peak_rss_mb": 3288.6015625
+}

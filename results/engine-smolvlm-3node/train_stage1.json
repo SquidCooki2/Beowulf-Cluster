@@ -1,0 +1,157 @@
+{
+  "kind": "train",
+  "platform": "engine",
+  "run_id": "engine-smolvlm-3node",
+  "stage": 1,
+  "num_stages": 3,
+  "model": "scienceqa_smolvlm",
+  "system": {
+    "hostname": "prodesk1",
+    "os": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+    "cpu": "Intel(R) Core(TM) i5-9500T CPU @ 2.20GHz",
+    "cpu_count": 6,
+    "torch": "2.15.0+cpu",
+    "torch_threads": 6,
+    "device": "cpu",
+    "commit": "b87501b",
+    "slurm_job_id": null
+  },
+  "config": {
+    "micro_batch_size": 4,
+    "num_microbatches": 8,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "limit": null,
+    "seed": 0,
+    "pretrained": true,
+    "epochs": 10,
+    "devices": [
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5",
+      "HP_ProDesk_400_G5"
+    ]
+  },
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_s": 1061.100457730001,
+      "val_s": 64.89815522599929,
+      "images_per_s": 7.780601676171131,
+      "comm": {
+        "recv_wait_s": 504.5491946810871,
+        "send_s": 1.7051485839801899,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 2,
+      "train_s": 1083.3179806509997,
+      "val_s": 62.95340341700103,
+      "images_per_s": 7.621031079940823,
+      "comm": {
+        "recv_wait_s": 518.5867359289732,
+        "send_s": 1.7325551429985353,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 3,
+      "train_s": 1079.7348223119989,
+      "val_s": 62.361024854999414,
+      "images_per_s": 7.646321883295116,
+      "comm": {
+        "recv_wait_s": 517.9485999540266,
+        "send_s": 1.7280650429347588,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 4,
+      "train_s": 1079.8006740359997,
+      "val_s": 62.73966695799936,
+      "images_per_s": 7.645855571789309,
+      "comm": {
+        "recv_wait_s": 518.4125457689443,
+        "send_s": 1.755408653019913,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 5,
+      "train_s": 1077.8359389839989,
+      "val_s": 62.822030048999295,
+      "images_per_s": 7.659792832462386,
+      "comm": {
+        "recv_wait_s": 517.7877154461203,
+        "send_s": 1.7627988469812408,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 6,
+      "train_s": 1079.077625078,
+      "val_s": 63.10722206199898,
+      "images_per_s": 7.650978769394115,
+      "comm": {
+        "recv_wait_s": 518.1831471620608,
+        "send_s": 1.7483427969800687,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 7,
+      "train_s": 1077.4031639590012,
+      "val_s": 63.05804863599951,
+      "images_per_s": 7.6628696445095725,
+      "comm": {
+        "recv_wait_s": 515.9861177589737,
+        "send_s": 1.71901257402169,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 8,
+      "train_s": 1077.1934236330017,
+      "val_s": 62.501566459999594,
+      "images_per_s": 7.664361681818815,
+      "comm": {
+        "recv_wait_s": 517.1860237699584,
+        "send_s": 1.7382075379409798,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 9,
+      "train_s": 1403.8032841310014,
+      "val_s": 63.09931856399999,
+      "images_per_s": 5.881165896481518,
+      "comm": {
+        "recv_wait_s": 853.9988479057392,
+        "send_s": 1.6950859478929488,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    },
+    {
+      "epoch": 10,
+      "train_s": 1079.274101226998,
+      "val_s": 63.479150839000795,
+      "images_per_s": 7.649585949124484,
+      "comm": {
+        "recv_wait_s": 518.5231316768441,
+        "send_s": 1.7407598779318505,
+        "bytes_sent": 2434970976,
+        "bytes_recv": 2434793472
+      }
+    }
+  ],
+  "peak_rss_mb": 1991.51953125
+}

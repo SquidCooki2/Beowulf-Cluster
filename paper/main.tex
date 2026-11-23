@@ -238,7 +238,7 @@ UNC-C HPC GPU Node & \gap{HW-16: GPU model} & \gap{HW-17} & \gap{HW-18} & \gap{H
 \toprule
 \textbf{Cluster Config} & \textbf{Node GFLOPS} & \textbf{MobileNetV2 (19)} & \textbf{SmolVLM (30)} \\
 \midrule
-3-Node Control (Static) & 304.8, 423.2, 429.9 & 7, 6, 6 & \gap{PART-3: e.g. 10,10,10} \\
+3-Node Control (Static) & 304.8, 423.2, 429.9 & 7, 6, 6 & 10, 10, 10 \\
 4-Node Hetero (Static) & \gap{PART-4} & \gap{PART-5} & \gap{PART-6} \\
 4-Node Hetero (FLOPS) & \gap{PART-7} & \gap{PART-8} & \gap{PART-9} \\
 \bottomrule
@@ -249,9 +249,11 @@ UNC-C HPC GPU Node & \gap{HW-16: GPU model} & \gap{HW-17} & \gap{HW-18} & \gap{H
 \placeholderfig{fig2_flops_partition}{Measured node GFLOPS vs.\ allocated layers on the 3-node homogeneous control and 4-node heterogeneous (3 ProDesks + 1 generic laptop) clusters.}{Grouped bar chart comparing static uniform splitting against \texttt{HeteroPartitioner} largest-remainder allocation for both \texttt{malaria\_mobilenet} (19 blocks) and \texttt{scienceqa\_smolvlm} (30 decoder layers).}
 
 \subsection{Training Throughput, Convergence, and Memory}
-Table~\ref{tab:train} compares median seconds per epoch, training throughput (\texttt{images/s}), time to target validation accuracy ($95\%$), best validation/test accuracy, and per-node peak resident memory (\texttt{peak\_rss\_mb}).
+Table~\ref{tab:train} compares median seconds per epoch, training throughput (\texttt{images/s}), time to target validation accuracy ($95\%$ for \texttt{malaria\_mobilenet}, $60\%$ for \texttt{scienceqa\_smolvlm}), best validation/test accuracy, and per-node peak resident memory (\texttt{peak\_rss\_mb}).
 
-On the 3-node HP ProDesk 400 G5 control cluster (\texttt{malaria\_mobilenet}, static \texttt{[7, 6, 6]} split), synchronous 1F1B training sustains a median throughput of \textbf{113.2\,img/s} (\textbf{208.0\,s/epoch}, comprising 194.5\,s training and 13.4\,s validation) across the 22,046-image training split. The pipeline exceeds the $95\%$ validation target on its very first epoch (\textbf{211\,s} wall-clock, $96.48\%$ validation accuracy), reaches a peak validation accuracy of \textbf{97.24\%} at Epoch~6, and achieves \textbf{96.08\%} held-out test accuracy ($n = 2{,}756$). Per-node peak resident memory remains well within commodity limits: worker nodes (Stages 1 and 2) peak at just \textbf{389.7\,MB} and \textbf{397.2\,MB} RSS respectively, while Stage~0 peaks at \textbf{1,950.3\,MB} due to caching the full 1.3\,GB \texttt{malaria\_128.npz} image array in RAM.
+On the 3-node HP ProDesk 400 G5 control cluster, \texttt{malaria\_mobilenet} (static \texttt{[7, 6, 6]} split) sustains a median throughput of \textbf{113.2\,img/s} (\textbf{208.0\,s/epoch}, comprising 194.5\,s training and 13.4\,s validation) across the 22,046-image training split. The pipeline exceeds the $95\%$ validation target on its very first epoch (\textbf{211\,s} wall-clock, $96.48\%$ validation accuracy), reaches a peak validation accuracy of \textbf{97.24\%} at Epoch~6, and achieves \textbf{96.08\%} held-out test accuracy ($n = 2{,}756$). Worker nodes (Stages 1 and 2) peak at just \textbf{389.7\,MB} and \textbf{397.2\,MB} RSS respectively, while Stage~0 peaks at \textbf{1,950.3\,MB} due to caching the full 1.3\,GB \texttt{malaria\_128.npz} image array in RAM.
+
+For the 256M-parameter multimodal \texttt{scienceqa\_smolvlm} workload (static \texttt{[10, 10, 10]} decoder split across 8,265 training samples), the 3-node cluster sustains \textbf{7.65\,img/s} (\textbf{1,142.2\,s/epoch}, 1,079.7\,s training and 62.5\,s validation). Validation accuracy improves monotonically from $35.24\%$ (Epoch~1) to \textbf{60.31\%} (Epoch~10, crossing the $60\%$ target at \textbf{11,738\,s}), yielding \textbf{58.03\%} held-out test accuracy ($n = 1{,}034$) on 5-way ScienceQA classification. Critically, even with full \texttt{float32} weights and Adam optimizer states, per-node peak memory stays comfortably below an 8\,GB budget: \textbf{3,288.6\,MB} on Stage~0 (SigLIP vision encoder + 10 decoder layers + packed dataset), \textbf{1,991.5\,MB} on Stage~1, and \textbf{1,843.4\,MB} on Stage~2.
 
 \begin{table*}[t]
 \centering
@@ -268,7 +270,7 @@ On the 3-node HP ProDesk 400 G5 control cluster (\texttt{malaria\_mobilenet}, st
  & HPC Single-Node GPU & \gap{TR-19} & \gap{TR-20} & \gap{TR-21} & \gap{TR-22} & \gap{TR-23} & \gap{TR-24} \\
 \midrule
 \multirow{4}{*}{\texttt{scienceqa\_smolvlm}}
- & 3-Node ProDesk Control & \gap{TR-25} & \gap{TR-26} & \gap{TR-27} & \gap{TR-28} & \gap{TR-29} & \gap{TR-30} \\
+ & 3-Node ProDesk Control & 1142.2 & 7.65 & 11738 & 60.31\% & 58.03\% & 3289 \\
  & 4-Node Hetero (FLOPS) & \gap{TR-31} & \gap{TR-32} & \gap{TR-33} & \gap{TR-34} & \gap{TR-35} & \gap{TR-36} \\
  & HPC Single-Node CPU & \gap{TR-37} & \gap{TR-38} & \gap{TR-39} & \gap{TR-40} & \gap{TR-41} & \gap{TR-42} \\
  & HPC Single-Node GPU & \gap{TR-43} & \gap{TR-44} & \gap{TR-45} & \gap{TR-46} & \gap{TR-47} & \gap{TR-48} \\
@@ -281,7 +283,9 @@ On the 3-node HP ProDesk 400 G5 control cluster (\texttt{malaria\_mobilenet}, st
 \subsection{Pipelined Inference Latency and Throughput}
 Table~\ref{tab:infer} reports single-batch ($b=1$) round-trip latency percentiles (\texttt{p50}, \texttt{p95}) under \texttt{ack\_each=True} and streaming throughput (\texttt{images/s}) at batch sizes $b \in \{1, 8, 32\}$ under \texttt{ack\_each=False}.
 
-For \texttt{malaria\_mobilenet} on the 3-node ProDesk cluster, end-to-end single-image inference completes in \textbf{9.82\,ms} median latency (\textbf{10.96\,ms} p95, 12.56\,ms p99 across $n=200$ samples), well within interactive clinical-screening budgets. In streaming mode across the 2,756-image test set ($96.08\%$ accuracy), pipelined execution achieves \textbf{265.4\,img/s} at $b=1$ and \textbf{255.2\,img/s} at $b=8$, tapering slightly to \textbf{205.7\,img/s} at $b=32$ as larger activation tensors increase per-stage CPU cache pressure and pipeline fill/drain latency.
+For \texttt{malaria\_mobilenet} on the 3-node ProDesk cluster, end-to-end single-image inference completes in \textbf{9.82\,ms} median latency (\textbf{10.96\,ms} p95, 12.56\,ms p99 across $n=200$ samples), well within interactive clinical-screening budgets. In streaming mode across the 2,756-image test set ($96.08\%$ accuracy), pipelined execution achieves \textbf{265.4\,img/s} at $b=1$ and \textbf{255.2\,img/s} at $b=8$, tapering to \textbf{205.7\,img/s} at $b=32$ as larger activation tensors increase per-stage CPU cache pressure and pipeline fill/drain latency.
+
+For \texttt{scienceqa\_smolvlm}, end-to-end multimodal single-query latency completes in \textbf{282.73\,ms} median (\textbf{340.93\,ms} p95, 362.78\,ms p99 across $n=200$ samples), demonstrating interactive sub-second VLM serving entirely on repurposed office CPUs with under \textbf{1.89\,GB} RSS per node. Streaming throughput peaks at \textbf{17.59\,img/s} at $b=8$ (vs.\ \textbf{12.75\,img/s} at $b=1$ and \textbf{15.88\,img/s} at $b=32$ across all 1,034 test samples at $58.03\%$ accuracy), reflecting better matrix-multiplication utilization at $b=8$ before cache pressure appears at $b=32$.
 
 \begin{table}[t]
 \centering
@@ -299,7 +303,7 @@ For \texttt{malaria\_mobilenet} on the 3-node ProDesk cluster, end-to-end single
  & HPC GPU & \gap{INF-16} & \gap{INF-17} & \gap{INF-18} & \gap{INF-19} & \gap{INF-20} \\
 \midrule
 \multirow{4}{*}{\texttt{smolvlm}}
- & 3-Node Control & \gap{INF-21} & \gap{INF-22} & \gap{INF-23} & \gap{INF-24} & \gap{INF-25} \\
+ & 3-Node Control & 282.73 & 340.93 & 12.75 & 17.59 & 15.88 \\
  & 4-Node Hetero & \gap{INF-26} & \gap{INF-27} & \gap{INF-28} & \gap{INF-29} & \gap{INF-30} \\
  & HPC CPU & \gap{INF-31} & \gap{INF-32} & \gap{INF-33} & \gap{INF-34} & \gap{INF-35} \\
  & HPC GPU & \gap{INF-36} & \gap{INF-37} & \gap{INF-38} & \gap{INF-39} & \gap{INF-40} \\
@@ -313,7 +317,7 @@ For \texttt{malaria\_mobilenet} on the 3-node ProDesk cluster, end-to-end single
 \subsection{Communication Overhead, Memory, and Energy Footprint}
 To isolate network vs.\ compute bottlenecks, Table~\ref{tab:comm_energy} reports ZeroMQ transport counters (\texttt{recv\_wait\_s}, \texttt{send\_s}, total MiB transferred per epoch) alongside measured cluster power draw, energy-to-target, and estimated e-waste diverted.
 
-On the 3-node \texttt{malaria\_mobilenet} control run, the pipeline exchanges \textbf{2,408.9\,MiB/epoch} across both inter-stage links (688.2\,MiB Stage~$0 \rightarrow 1$ and 516.2\,MiB Stage~$1 \rightarrow 2$ in each direction), yet ZeroMQ serialization and TCP transmission consume only \textbf{1.03--2.20\,s} per stage (\textbf{1.64\,s} mean, $<1.2\%$ of epoch time), confirming that Gigabit Ethernet is not the bottleneck. Instead, the per-stage wait profile reveals compute imbalance under static \texttt{[7, 6, 6]} slicing: Stage~0 is nearly saturated (\texttt{recv\_wait\_s} = 3.7\,s) due to higher-resolution early MobileNetV2 convolutions and CPU data augmentation, leaving Stages~1 and~2 idle for \textbf{120.3\,s} and \textbf{107.5\,s} per epoch respectively (77.2\,s cluster mean). This empirically motivates both FLOPS-aware partitioning and future stage-compute-weighted (rather than layer-count-only) splitting.
+Across both workloads on the 3-node control cluster, Gigabit Ethernet transport is negligible compared to CPU compute. On \texttt{malaria\_mobilenet}, the pipeline transfers \textbf{2,408.9\,MiB/epoch} across both inter-stage links (688.2\,MiB Stage~$0 \rightarrow 1$ and 516.2\,MiB Stage~$1 \rightarrow 2$ in each direction), yet ZeroMQ serialization and TCP transmission consume only \textbf{1.03--2.20\,s} per stage (\textbf{1.64\,s} mean, $<1.2\%$ of epoch time). On \texttt{scienceqa\_smolvlm}, sequence activation and gradient traffic doubles to \textbf{4,644.3\,MiB/epoch} (1,161.1\,MiB per direction on each link), yet \texttt{send\_s} averages just \textbf{1.10\,s} per stage (0.70--1.74\,s, $<0.15\%$ of the 1,079.7\,s training epoch). Instead, per-stage wait profiles expose compute imbalance under static uniform splitting: Stage~0 is saturated on both workloads (\texttt{recv\_wait\_s} = 3.7\,s on MobileNetV2 due to high-resolution early convolutions and augmentation; 49.6\,s on SmolVLM due to running the frozen SigLIP vision stem atop 10 decoder layers), leaving Stages~1 and~2 idle for \textbf{120.3\,s / 107.5\,s} on MobileNetV2 (77.2\,s mean) and \textbf{518.1\,s / 545.9\,s} on SmolVLM (371.2\,s mean). This empirically motivates both FLOPS-aware and stage-compute-weighted partitioning (assigning fewer decoder layers to Stage~0).
 
 \begin{table}[t]
 \centering
@@ -324,7 +328,8 @@ On the 3-node \texttt{malaria\_mobilenet} control run, the pipeline exchanges \t
 \toprule
 \textbf{Config} & \textbf{Wait (s)} & \textbf{Send (s)} & \textbf{Data (MiB/ep)} & \textbf{Energy (Wh/ep)} & \textbf{E-Waste Saved (kg)} \\
 \midrule
-3-Node Control & 77.2 (mean) & 1.64 (mean) & 2408.9 & \gap{ENG-1} & \gap{EW-1} \\
+3-Node Control (Malaria) & 77.2 (mean) & 1.64 (mean) & 2408.9 & \gap{ENG-1} & \gap{EW-1} \\
+3-Node Control (SmolVLM) & 371.2 (mean) & 1.10 (mean) & 4644.3 & \gap{ENG-1b} & \gap{EW-1} \\
 4-Node (Static) & \gap{COM-4} & \gap{COM-5} & \gap{COM-6} & \gap{ENG-2} & \gap{EW-2} \\
 4-Node (FLOPS) & \gap{COM-7} & \gap{COM-8} & \gap{COM-9} & \gap{ENG-3} & \gap{EW-3} \\
 HPC GPU Baseline & -- & -- & -- & \gap{ENG-4} & 0 \\
