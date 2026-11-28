@@ -1,0 +1,51 @@
+{
+  "kind": "infer",
+  "platform": "hpc-cpu",
+  "run_id": "hpc-cpu-malaria_mobilenet-26226",
+  "model": "malaria_mobilenet",
+  "system": {
+    "hostname": "gal-c1.charlotte.edu",
+    "os": "Linux-5.14.0-570.49.1.el9_6.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Gold 6154 CPU @ 3.00GHz",
+    "cpu_count": 36,
+    "torch": "2.5.1+cu121",
+    "torch_threads": 8,
+    "device": "cpu",
+    "commit": "d8bc226",
+    "slurm_job_id": "26226"
+  },
+  "config": {
+    "limit": null,
+    "weights": "output/benchmark_cpu/malaria_mobilenet",
+    "pretrained": true
+  },
+  "latency_b1": {
+    "n": 200,
+    "mean_ms": 9.907295107841492,
+    "p50_ms": 9.876786731183529,
+    "p95_ms": 9.926759079098701,
+    "p99_ms": 10.01390993595122,
+    "acc": 0.975
+  },
+  "throughput": {
+    "1": {
+      "images_per_s": 98.17461235454721,
+      "elapsed_s": 28.072430681437254,
+      "n": 2756,
+      "acc": 0.9687953555878084
+    },
+    "8": {
+      "images_per_s": 344.03434392720766,
+      "elapsed_s": 8.010828129947186,
+      "n": 2756,
+      "acc": 0.9687953555878084
+    },
+    "32": {
+      "images_per_s": 508.5555340915426,
+      "elapsed_s": 5.419270493090153,
+      "n": 2756,
+      "acc": 0.9687953555878084
+    }
+  },
+  "peak_rss_mb": 1993.2265625
+}
