@@ -1,0 +1,52 @@
+{
+  "kind": "infer",
+  "platform": "hpc-cuda",
+  "run_id": "hpc-cuda-malaria_mobilenet-26225",
+  "model": "malaria_mobilenet",
+  "system": {
+    "hostname": "gal-gpu5.charlotte.edu",
+    "os": "Linux-5.14.0-570.49.1.el9_6.x86_64-x86_64-with-glibc2.34",
+    "cpu": "Intel(R) Xeon(R) Silver 4112 CPU @ 2.60GHz",
+    "cpu_count": 8,
+    "torch": "2.5.1+cu121",
+    "torch_threads": 8,
+    "device": "cuda",
+    "commit": "d8bc226",
+    "slurm_job_id": "26225",
+    "gpu": "NVIDIA GeForce GTX 1080 Ti"
+  },
+  "config": {
+    "limit": null,
+    "weights": "output/benchmark_gpu/malaria_mobilenet",
+    "pretrained": true
+  },
+  "latency_b1": {
+    "n": 200,
+    "mean_ms": 8.478149437578395,
+    "p50_ms": 8.475130423903465,
+    "p95_ms": 8.515368355438113,
+    "p99_ms": 8.533257716335356,
+    "acc": 0.96
+  },
+  "throughput": {
+    "1": {
+      "images_per_s": 114.07078278810212,
+      "elapsed_s": 24.16043734108098,
+      "n": 2756,
+      "acc": 0.9499274310595065
+    },
+    "8": {
+      "images_per_s": 843.4570794445362,
+      "elapsed_s": 3.2675047339871526,
+      "n": 2756,
+      "acc": 0.9499274310595065
+    },
+    "32": {
+      "images_per_s": 1444.6892065384502,
+      "elapsed_s": 1.9076767428778112,
+      "n": 2756,
+      "acc": 0.9499274310595065
+    }
+  },
+  "peak_rss_mb": 2206.734375
+}

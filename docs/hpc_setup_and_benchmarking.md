@@ -16,7 +16,7 @@ How to run the benchmarked models (`malaria_mobilenet` by default, or `scienceqa
 ## 1. Log in and get the code
 
 ```bash
-ssh <ninernet_id>@hpc.charlotte.edu     # needs VPN + Duo off campus
+ssh <ninernet_id>@hpc-student.charlotte.edu     # needs VPN + Duo off campus
 cd ~
 git clone <your repo URL> Beowulf-Cluster
 cd Beowulf-Cluster
