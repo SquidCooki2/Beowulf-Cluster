@@ -1,6 +1,6 @@
 # HPC Setup & Benchmark Guide (UNC Charlotte)
 
-How to run the malaria model on the UNC Charlotte HPC (CPU and GPU) so it can be compared with the Beowulf engine. Both platforms run the same model code, the same data split and the same recipe. See [Fairness checklist](#fairness-checklist) before you trust any speedup number.
+How to run the benchmarked models (`malaria_mobilenet` by default, or `scienceqa_smolvlm`) on the UNC Charlotte HPC (CPU and GPU) so they can be compared with the Beowulf engine. Both platforms run the same model code, the same data split and the same recipe. See [Fairness checklist](#fairness-checklist) before you trust any speedup number.
 
 > [!NOTE]
 > Partition names, module names and limits below come from the UNC Charlotte HPC docs and the earlier planning notes. Confirm them on the cluster with `sinfo`, `module avail` and `sacctmgr show assoc user=$USER` before the first run, since they change.
@@ -27,14 +27,14 @@ The code is small, so your user directory `/users/<ninernet_id>` is fine for it.
 ### Storage: Local `./data` vs `/scratch/$USER`
 
 By default, all scripts and Slurm jobs keep datasets and weights directly inside your cloned repo:
-* **Dataset:** `Beowulf-Cluster/data/` (specifically `data/malaria_128.npz`, ~1.3GB)
+* **Dataset:** `Beowulf-Cluster/data/` (specifically `data/malaria_128.npz`, ~1.3GB, or `data/scienceqa_128.npz` for ScienceQA)
 * **Model outputs:** `Beowulf-Cluster/output/`
-* **Torch weight cache:** `Beowulf-Cluster/.torch_cache/`
+* **Torch & HuggingFace weight caches:** `Beowulf-Cluster/.torch_cache/` and `Beowulf-Cluster/.hf_cache/`
 
-All three are ignored by `.gitignore` so your Git state stays clean.
+All of these are ignored by `.gitignore` so your Git state stays clean.
 
 **Why this is safe in your home/user directory (`/users/<ninernet_id>`):**
-UNC Charlotte user directories have a **5 million file (inode) limit** and a 500GB quota. Because our pipeline packs all 27,558 image cells into **a single `.npz` file**, it consumes only 2 files on disk (the downloaded `.zip` and the packed `.npz`), well within your quota.
+UNC Charlotte user directories have a **5 million file (inode) limit** and a 500GB quota. Because our pipeline packs all images (e.g., all 27,558 malaria cell images) into **a single `.npz` file**, it consumes only 1–2 files on disk for the dataset, well within your quota.
 
 If you ever wish to redirect datasets or large model checkpoints to scratch, simply set the environment variables `DATA_DIR=/scratch/$USER/data` or pass `--data-dir /scratch/$USER/data`.
 
@@ -65,12 +65,13 @@ python -c "import torch; print('CUDA available:', torch.cuda.is_available(), '| 
 
 ## 3. Prepare the data (once, on the login node)
 
-The compute nodes may have no internet access, so download on the login node. This downloads the NIH malaria zip (~340 MB) into `Beowulf-Cluster/data/`, resizes the images to 128×128, and packs them into a single `data/malaria_128.npz` file:
+The compute nodes may have no internet access, so download and cache weights on the login node. For `malaria_mobilenet`, this downloads the NIH malaria zip (~340 MB) into `Beowulf-Cluster/data/`, resizes the images to 128×128, and packs them into `data/malaria_128.npz`. For `scienceqa_smolvlm`, it downloads `derek-thomas/ScienceQA` and `HuggingFaceTB/SmolVLM-256M-Instruct` and packs image-bearing samples into `data/scienceqa_128.npz`:
 
 ```bash
 cd ~/Beowulf-Cluster
-mkdir -p data output .torch_cache
+mkdir -p data output .torch_cache .hf_cache
 export TORCH_HOME=.torch_cache
+export HF_HOME=.hf_cache
 
 python - <<'EOF'
 from data import malaria
@@ -82,9 +83,22 @@ get_spec("malaria_mobilenet").create_stages(5)  # caches pretrained ImageNet wei
 EOF
 ```
 
+If you are also benchmarking `scienceqa_smolvlm`, prepare its packed dataset and HuggingFace cache on the login node as well:
+
+```bash
+python - <<'EOF'
+from data import scienceqa
+from models.registry import get_spec
+
+ds, y = scienceqa.load_arrays("data")           # downloads, packs to data/scienceqa_128.npz
+print("scienceqa samples:", len(ds), "labels:", y.shape)
+get_spec("scienceqa_smolvlm").create_stages(5)  # caches SmolVLM-256M weights in HF_HOME
+EOF
+```
+
 Packing takes a few minutes. If the admins prefer no heavy work on the login node, run the same snippet inside an interactive job instead (`srun --partition=Orion --cpus-per-task=4 --mem=16G --time=01:00:00 --pty bash`), but note that compute nodes may have no internet, so do the download part on the login node.
 
-Expected output: `images: (27558, 128, 128, 3)`. A fixed, seeded 80/10/10 train/val/test split is derived from this one file. The same file is copied to the engine's head node (see [step 6](#6-run-the-engine-side)).
+Expected output for malaria: `images: (27558, 128, 128, 3)`. A fixed, seeded 80/10/10 train/val/test split is derived from each packed `.npz` file. The same file is copied to the engine's head node (see [step 6](#6-run-the-engine-side)).
 
 ## 4. Smoke test (a few minutes)
 
@@ -96,13 +110,14 @@ srun --partition=GPU --gres=gpu:1 --cpus-per-task=4 --mem=16G --time=00:30:00 --
 cd ~/Beowulf-Cluster
 module load anaconda3 && source activate beowulf
 export TORCH_HOME=.torch_cache
+export HF_HOME=.hf_cache
 
 python -m training.train_local --device cuda --epochs 1 --limit 256 --workers 2 --run-id smoke
 python -m benchmark.infer_local --device cuda --limit 256 --latency-samples 20 --weights-dir output/malaria_mobilenet --run-id smoke
 exit
 ```
 
-You should see per-epoch lines with `img/s` and a `results/smoke/train.json` and `infer.json`. Delete `results/smoke` afterwards.
+Pass `--model scienceqa_smolvlm` (and `--weights-dir output/scienceqa_smolvlm`) if smoke-testing ScienceQA. You should see per-epoch lines with `img/s` and a `results/smoke/train.json` and `infer.json`. Delete `results/smoke` afterwards.
 
 ## 5. Run the benchmarks
 
@@ -116,13 +131,15 @@ sbatch hpc/benchmark_gpu.slurm      # 1 GPU, 8 cores
 sbatch hpc/benchmark_cpu.slurm      # CPU only, 8 cores (fair comparison with the CPU-only engine)
 ```
 
-Each job trains for 10 epochs (override with `EPOCHS=5 sbatch ...`), then runs the inference benchmark. Results go to `results/hpc-cuda-<jobid>/` and `results/hpc-cpu-<jobid>/`.
+Each job trains for 10 epochs (override with `EPOCHS=5 sbatch ...`), then runs the inference benchmark. Results go to `results/hpc-cuda-<model>-<jobid>/` and `results/hpc-cpu-<model>-<jobid>/` (default `<model>` is `malaria_mobilenet`).
 
 Useful variations:
 
 ```bash
+MODEL=scienceqa_smolvlm sbatch hpc/benchmark_gpu.slurm                  # run ScienceQA SmolVLM-256M
 EPOCHS=3 sbatch hpc/benchmark_cpu.slurm                                   # shorter run
 TRAIN_ARGS="--batch-size 64" sbatch hpc/benchmark_gpu.slurm               # extra trainer flags
+INFER_ARGS="--latency-samples 50" sbatch hpc/benchmark_gpu.slurm          # extra inference flags
 RUN_ID=hpc-gpu-run2 sbatch hpc/benchmark_gpu.slurm                        # named run
 CONDA_ENV=/scratch/$USER/envs/beowulf sbatch hpc/benchmark_gpu.slurm      # env in scratch
 ```
@@ -144,15 +161,17 @@ The GPU partition has a maximum of 12 active GPUs per user and a 30-day maximum 
 
 ## 6. Run the engine side
 
-On the cluster head node (`10.0.0.10`), with the repo at `/shared/pipe1f1b`:
+Use `launch_cluster.sh` on the 5-node cluster (`thinkcentre1` at `10.0.0.10`, `config.json`) or `launch_cluster_3node.sh` on the 3-node HP ProDesk cluster (`prodesk2` at `192.168.1.12`, `config_3node.json`), with the repo at `/shared/pipe1f1b`:
 
 ```bash
 # one-time: copy the packed dataset and prefetch weights so stages don't race to download
 scp <ninernet_id>@hpc.charlotte.edu:~/Beowulf-Cluster/data/malaria_128.npz /shared/data/
 export TORCH_HOME=/shared/torch_cache
+export HF_HOME=/shared/hf_cache
 python3 -c "from models.registry import get_spec; get_spec('malaria_mobilenet').create_stages(5)"
 
 # training (same recipe: batch 32 = 8 micro-batches x 4, lr 1e-4, full fine-tune)
+# (use launch_cluster_3node.sh for the 3-node cluster)
 bash launch_cluster.sh --mode train --epochs 10 --data-dir /shared/data --run-id engine-train --results-dir /shared/pipe1f1b/results
 
 # inference using the engine's own trained weights
@@ -160,21 +179,23 @@ bash launch_cluster.sh --mode infer --data-dir /shared/data \
     --weights-dir /shared/pipe1f1b/results/engine-train/weights --run-id engine-train --results-dir /shared/pipe1f1b/results
 ```
 
-> [!IMPORTANT]
-> Every flag is forwarded to all five nodes, and these must be identical everywhere: `--run-id`, `--limit`, `--seed`, `--epochs`, `--data-dir` contents. All stages must run the same mode at the same time.
+For `scienceqa_smolvlm`, pass `--model scienceqa_smolvlm`, copy `data/scienceqa_128.npz` to `/shared/data/`, and prefetch `get_spec('scienceqa_smolvlm').create_stages(3)` (or `5`) into `HF_HOME=/shared/hf_cache` (`launch_cluster_3node.sh` automatically sets `TORCH_HOME=/shared/torch_cache`, `HF_HOME=/shared/hf_cache`, and `HF_HUB_OFFLINE=1` on workers). By default `run_stage.py` uses `--partition auto` (FLOPS-weighted layer partitioning, falling back to `static` when `--weights-dir` is set).
 
-Quick connectivity test without data: `bash launch_cluster.sh` (default `--mode synthetic`). You can also run the whole engine on one machine: `python -m benchmark.launch_local -- --mode synthetic --no-pretrained`.
+> [!IMPORTANT]
+> Every flag is forwarded to all stages (5 nodes for `launch_cluster.sh`, 3 nodes for `launch_cluster_3node.sh`), and these must be identical everywhere: `--model`, `--run-id`, `--limit`, `--seed`, `--epochs`, `--data-dir` contents. All stages must run the same mode at the same time.
+
+Quick connectivity test without data: `bash launch_cluster.sh` or `bash launch_cluster_3node.sh --mode synthetic --no-pretrained` (default `--mode synthetic`). You can also run the whole engine on one machine: `python -m benchmark.launch_local -- --mode synthetic --no-pretrained`.
 
 ## 7. Compare
 
-Copy the HPC `results/hpc-*` folders and the engine's `results/engine-*` folder into one `results/` directory (anywhere), then:
+Copy the HPC `results/hpc-*` folders and the engine's `results/engine-*` folder into one `results/` directory (note that `results/engine-malaria-3node/` is already committed in the repo with a 3-node malaria baseline in `results/summary.md`), then:
 
 ```bash
 scp -r <ninernet_id>@hpc.charlotte.edu:~/Beowulf-Cluster/results/hpc-* results/
 python -m benchmark.compare --results-dir results --target-acc 0.95
 ```
 
-This writes `results/summary.md` (a table plus speedups vs the engine) and `results/accuracy_vs_time.png`. Pick `--target-acc` as an accuracy that every platform reaches (check the best validation accuracy column first); the time to reach it is the fairest training metric, because the platforms may converge at slightly different rates.
+This writes `results/summary.md` (a table plus speedups vs the engine) and `results/accuracy_vs_time.png`. Pick `--target-acc` as an accuracy that every platform reaches (check the best validation accuracy column first); the time to reach it is the fairest training metric, because the platforms may converge at slightly different rates. If you benchmark both `malaria_mobilenet` and `scienceqa_smolvlm`, keep their result folders in separate `--results-dir` directories when running `benchmark.compare` so different models are not mixed into one table.
 
 ### What is measured
 
@@ -204,6 +225,6 @@ This writes `results/summary.md` (a table plus speedups vs the engine) and `resu
 | Inode quota warning during training | The packed `data/malaria_128.npz` only takes 2 inodes, but if you create thousands of custom checkpoints, pass `--output-dir /scratch/$USER/output`. |
 | `torch.cuda.is_available()` is `False` on the GPU node | Reinstall torch with a CUDA build matching `nvidia-smi`. |
 | Job stuck in `PD` (pending) | `squeue -u $USER -o "%i %T %r"` shows the reason; shorten `--time` or reduce resources. |
-| Download or `urlretrieve` fails on a compute node | Compute nodes may be offline. Prepare data and weights on the login node (step 3). |
-| `PermissionError` on `mobilenet_v2-*.pth` in engine runs | Several stages tried to download at once. Prefetch once (step 6) or use `--no-pretrained` for pure timing runs. |
-| Engine stages hang | All five stages must be started with the same mode and counts; check `ip`/port values in `config.json` and that ports 5550-5564 are open between nodes. |
+| Download or `urlretrieve` fails on a compute node | Compute nodes may be offline. Prepare data and weights (`TORCH_HOME` / `HF_HOME`) on the login node (step 3), and set `HF_HUB_OFFLINE=1` if needed. |
+| `PermissionError` on `mobilenet_v2-*.pth` or HuggingFace cache in engine runs | Several stages tried to download at once. Prefetch once (step 6), set `HF_HUB_OFFLINE=1` on workers, or use `--no-pretrained` for pure timing runs. |
+| Engine stages hang | All stages (5 for `config.json`, 3 for `config_3node.json`) must be started with the same mode and counts; check `ip`/port values in the config and that ports 5550-5564 are open between nodes. |
